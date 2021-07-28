@@ -1,6 +1,9 @@
-# generation
+# Generation Tutorial
 
-A new Flutter project.
+### This is the project source code of my youtube video tuorial of 
+### `Flutter Social Media App Tutorial 2021`
+
+### Tutorial is available at: https://youtube.com/playlist?list=PLn4o1Gy6eg752X6ZaJ7UL55kLJ235laOg
 
 ## Getting Started
 
