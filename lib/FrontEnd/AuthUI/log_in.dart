@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:generation/Backend/firebase/Auth/sign_up_auth.dart';
+import 'package:generation/Backend/firebase/Auth/email_and_pwd_auth.dart';
+import 'package:generation/Backend/firebase/Auth/fb_auth.dart';
+import 'package:generation/Backend/firebase/Auth/google_auth.dart';
 import 'package:generation/FrontEnd/home_page.dart';
 import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:generation/Global_Uses/reg_exp.dart';
@@ -23,6 +25,8 @@ class _LogInScreenState extends State<LogInScreen> {
   final TextEditingController _pwd = TextEditingController();
 
   final EmailAndPasswordAuth _emailAndPasswordAuth = EmailAndPasswordAuth();
+  final GoogleAuthentication _googleAuthentication = GoogleAuthentication();
+  final FacebookAuthentication _facebookAuthentication = FacebookAuthentication();
 
   bool _isLoading = false;
 
@@ -33,6 +37,7 @@ class _LogInScreenState extends State<LogInScreen> {
         backgroundColor: const Color.fromRGBO(34, 48, 60, 1),
         body: LoadingOverlay(
           isLoading: this._isLoading,
+          color: Colors.black54,
           child: Container(
             child: ListView(
               shrinkWrap: true,
@@ -81,7 +86,7 @@ class _LogInScreenState extends State<LogInScreen> {
                     style: TextStyle(color: Colors.white, fontSize: 20.0),
                   ),
                 ),
-                socialMediaIntegrationButtons(),
+                logInSocialMediaIntegrationButtons(),
                 switchAnotherAuthScreen(
                     context, "Don't Have an Account? ", 'Sign-Up'),
               ],
@@ -161,6 +166,110 @@ class _LogInScreenState extends State<LogInScreen> {
             print('Not Validated');
           }
         },
+      ),
+    );
+  }
+
+  Widget logInSocialMediaIntegrationButtons() {
+    return Container(
+      width: double.maxFinite,
+      padding: EdgeInsets.all(30.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTap: ()async{
+              print('Google Pressed');
+              if (mounted) {
+                setState(() {
+                  this._isLoading = true;
+                });
+              }
+
+              final GoogleSignInResults _googleSignInResults =
+                  await this._googleAuthentication.signInWithGoogle();
+
+              String msg = '';
+
+              if (_googleSignInResults == GoogleSignInResults.SignInCompleted) {
+                msg = 'Sign In Completed';
+              } else if (_googleSignInResults ==
+                  GoogleSignInResults.SignInNotCompleted)
+                msg = 'Sign In not Completed';
+              else if (_googleSignInResults ==
+                  GoogleSignInResults.AlreadySignedIn)
+                msg = 'Already Google SignedIn';
+              else
+                msg = 'Unexpected Error Happen';
+
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(msg)));
+
+              if (_googleSignInResults == GoogleSignInResults.SignInCompleted)
+                Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => HomePage()),
+                        (route) => false);
+
+              if (mounted) {
+                setState(() {
+                  this._isLoading = false;
+                });
+              }
+            },
+            child: Image.asset(
+              'assets/images/google.png',
+              width: 50.0,
+            ),
+          ),
+          SizedBox(
+            width: 80.0,
+          ),
+          GestureDetector(
+            onTap: ()async{
+              print('Facebook Pressed');
+
+              if (mounted) {
+                setState(() {
+                  this._isLoading = true;
+                });
+              }
+
+              final FBSignInResults _fbSignInResults =
+                  await this._facebookAuthentication.facebookLogIn();
+
+              String msg = '';
+
+              if (_fbSignInResults == FBSignInResults.SignInCompleted) {
+                msg = 'Sign In Completed';
+              } else if (_fbSignInResults == FBSignInResults.SignInNotCompleted)
+                msg = 'Sign In not Completed';
+              else if (_fbSignInResults == FBSignInResults.AlreadySignedIn)
+                msg = 'Already Google SignedIn';
+              else
+                msg = 'Unexpected Error Happen';
+
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(msg)));
+
+              if (_fbSignInResults == FBSignInResults.SignInCompleted)
+                Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => HomePage()),
+                        (route) => false);
+
+              if (mounted) {
+                setState(() {
+                  this._isLoading = false;
+                });
+              }
+            },
+            child: Image.asset(
+              'assets/images/fbook.png',
+              width: 50.0,
+            ),
+          ),
+        ],
       ),
     );
   }
