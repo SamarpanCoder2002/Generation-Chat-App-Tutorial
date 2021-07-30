@@ -4,9 +4,9 @@ import 'package:generation/FrontEnd/AuthUI/sign_up.dart';
 
 import 'log_in.dart';
 
-Widget commonTextFormField({required String hintText, required String? Function(String?)? validator, required TextEditingController textEditingController}) {
+Widget commonTextFormField({required String hintText, required String? Function(String?)? validator, required TextEditingController textEditingController, double bottomPadding = 50.0}) {
   return Container(
-    padding: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 50.0),
+    padding: EdgeInsets.only(left: 20.0, right: 20.0, bottom: bottomPadding),
     child: TextFormField(
       validator: validator,
       controller: textEditingController,

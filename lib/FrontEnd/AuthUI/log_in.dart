@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:generation/Backend/firebase/Auth/email_and_pwd_auth.dart';
 import 'package:generation/Backend/firebase/Auth/fb_auth.dart';
 import 'package:generation/Backend/firebase/Auth/google_auth.dart';
+import 'package:generation/FrontEnd/NewUserEntry/new_user_entry.dart';
 import 'package:generation/FrontEnd/home_page.dart';
 import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:generation/Global_Uses/reg_exp.dart';
@@ -141,7 +142,7 @@ class _LogInScreenState extends State<LogInScreen> {
             if (emailSignInResults == EmailSignInResults.SignInCompleted)
               Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => HomePage()),
+                  MaterialPageRoute(builder: (_) => TakePrimaryUserData()),
                   (route) => false);
             else if (emailSignInResults ==
                 EmailSignInResults.EmailNotVerified) {
@@ -208,7 +209,7 @@ class _LogInScreenState extends State<LogInScreen> {
               if (_googleSignInResults == GoogleSignInResults.SignInCompleted)
                 Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => HomePage()),
+                    MaterialPageRoute(builder: (_) => TakePrimaryUserData()),
                         (route) => false);
 
               if (mounted) {
@@ -255,7 +256,7 @@ class _LogInScreenState extends State<LogInScreen> {
               if (_fbSignInResults == FBSignInResults.SignInCompleted)
                 Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => HomePage()),
+                    MaterialPageRoute(builder: (_) => TakePrimaryUserData()),
                         (route) => false);
 
               if (mounted) {

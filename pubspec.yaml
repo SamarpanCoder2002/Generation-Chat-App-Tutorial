@@ -36,6 +36,9 @@ dev_dependencies:
   firebase_core:
   google_sign_in: ^5.0.5
   flutter_facebook_auth: ^3.5.0
+  cloud_firestore: ^2.4.0
+  intl: ^0.17.0
+  firebase_messaging: ^10.0.4
 
   loading_overlay: ^0.3.0
 

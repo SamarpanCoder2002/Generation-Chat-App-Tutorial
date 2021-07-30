@@ -5,6 +5,7 @@ import 'package:generation/Backend/firebase/Auth/email_and_pwd_auth.dart';
 import 'package:generation/Backend/firebase/Auth/fb_auth.dart';
 import 'package:generation/Backend/firebase/Auth/google_auth.dart';
 import 'package:generation/FrontEnd/AuthUI/log_in.dart';
+import 'package:generation/FrontEnd/NewUserEntry/new_user_entry.dart';
 import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:generation/Global_Uses/reg_exp.dart';
 
@@ -213,7 +214,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               if (_googleSignInResults == GoogleSignInResults.SignInCompleted)
                 Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => HomePage()),
+                    MaterialPageRoute(builder: (_) => TakePrimaryUserData()),
                     (route) => false);
 
               if (mounted) {
@@ -260,7 +261,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               if (_fbSignInResults == FBSignInResults.SignInCompleted)
                 Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => HomePage()),
+                    MaterialPageRoute(builder: (_) => TakePrimaryUserData()),
                         (route) => false);
 
               if (mounted) {
