@@ -5,7 +5,7 @@ import 'package:generation/Backend/firebase/Auth/email_and_pwd_auth.dart';
 import 'package:generation/Backend/firebase/Auth/fb_auth.dart';
 import 'package:generation/Backend/firebase/Auth/google_auth.dart';
 import 'package:generation/FrontEnd/NewUserEntry/new_user_entry.dart';
-import 'package:generation/FrontEnd/home_page.dart';
+import 'package:generation/FrontEnd/MainScreens/home_page.dart';
 import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:generation/Global_Uses/reg_exp.dart';
 import 'package:loading_overlay/loading_overlay.dart';

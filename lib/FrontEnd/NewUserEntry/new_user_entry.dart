@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:generation/Backend/firebase/OnlineDatabaseManagement/new_user_entry.dart';
 import 'package:generation/FrontEnd/AuthUI/common_auth_methods.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:generation/FrontEnd/home_page.dart';
+import 'package:generation/FrontEnd/MainScreens/home_page.dart';
+import 'package:generation/FrontEnd/MainScreens/main_screen.dart';
 
 import 'package:loading_overlay/loading_overlay.dart';
 
@@ -147,7 +148,7 @@ class _TakePrimaryUserDataState extends State<TakePrimaryUserData> {
                 msg = 'User data Entry Successfully';
                 Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => HomePage()),
+                    MaterialPageRoute(builder: (_) => MainScreen()),
                     (route) => false);
               } else
                 msg = 'User Data Not Entry Successfully';

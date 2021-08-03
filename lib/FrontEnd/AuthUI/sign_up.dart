@@ -11,7 +11,7 @@ import 'package:generation/Global_Uses/reg_exp.dart';
 
 import 'package:loading_overlay/loading_overlay.dart';
 
-import '../home_page.dart';
+import '../MainScreens/home_page.dart';
 import 'common_auth_methods.dart';
 
 class SignUpScreen extends StatefulWidget {
