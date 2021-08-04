@@ -40,6 +40,11 @@ dev_dependencies:
   intl: ^0.17.0
   firebase_messaging: ^10.0.4
   animations: ^2.0.1
+  circle_list: ^1.0.5
+  flutter_icons:
+    git:
+      url: git://github.com/jibiel/flutter-icons.git
+      ref: master
 
   loading_overlay: ^0.3.0
 

@@ -297,7 +297,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                   middleColor: const Color.fromRGBO(31, 51, 71, 1),
                   closedElevation: 0.0,
                   openElevation: 0.0,
-                  transitionDuration: Duration(milliseconds: 50),
+                  transitionDuration: Duration(milliseconds: 500),
                   transitionType: ContainerTransitionType.fadeThrough,
                   // onClosed: (value) async {
                   //   /// Irrespectively make changes when a chat just Close

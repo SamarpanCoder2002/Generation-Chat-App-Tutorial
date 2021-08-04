@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'chatAndActivityScreen.dart';
+import 'general_connection_section.dart';
+import 'logs_collection.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -72,8 +74,8 @@ class _MainScreenState extends State<MainScreen> {
           body: TabBarView(
             children: [
               ChatAndActivityScreen(),
-              Center(),
-              Center(),
+              LogsCollection(),
+              GeneralMessagingSection(),
             ],
           ),
         ),
