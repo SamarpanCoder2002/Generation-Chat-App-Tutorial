@@ -24,3 +24,8 @@ enum FBSignInResults{
   AlreadySignedIn,
   UnExpectedError,
 }
+
+enum StatusMediaTypes{
+  TextActivity,
+  ImageActivity,
+}

@@ -45,6 +45,7 @@ dev_dependencies:
     git:
       url: git://github.com/jibiel/flutter-icons.git
       ref: master
+  sqflite: ^2.0.0+3
 
   loading_overlay: ^0.3.0
 

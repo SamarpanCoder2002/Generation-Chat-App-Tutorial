@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:generation/Backend/firebase/OnlineDatabaseManagement/new_user_entry.dart';
+import 'package:generation/Backend/firebase/OnlineDatabaseManagement/cloud_new_user_entry.dart';
 import 'package:generation/FrontEnd/AuthUI/log_in.dart';
 import 'package:generation/FrontEnd/MainScreens/main_screen.dart';
 import 'package:generation/FrontEnd/NewUserEntry/new_user_entry.dart';
