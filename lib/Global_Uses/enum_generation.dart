@@ -29,3 +29,23 @@ enum StatusMediaTypes{
   TextActivity,
   ImageActivity,
 }
+
+enum ConnectionStateName{
+  Connect,
+  Pending,
+  Accept,
+  Connected,
+}
+
+enum ConnectionStateType{
+  ButtonNameWidget,
+  ButtonBorderColor,
+  ButtonOnlyName,
+}
+
+enum OtherConnectionStatus{
+  Request_Pending,
+  Invitation_Came,
+  Invitation_Accepted,
+  Request_Accepted,
+}

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:generation/Backend/firebase/OnlineDatabaseManagement/cloud_new_user_entry.dart';
+import 'package:generation/Backend/firebase/OnlineDatabaseManagement/cloud_data_management.dart';
 import 'package:generation/Backend/sqlite_management/local_database_management.dart';
 import 'package:generation/FrontEnd/AuthUI/common_auth_methods.dart';
 import 'package:firebase_auth/firebase_auth.dart';

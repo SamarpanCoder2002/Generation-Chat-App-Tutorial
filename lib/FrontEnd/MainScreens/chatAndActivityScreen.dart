@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:generation/FrontEnd/Services/search_screen.dart';
 
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:animations/animations.dart';
@@ -21,6 +22,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
     return SafeArea(
       child: Scaffold(
         backgroundColor: const Color.fromRGBO(34, 48, 60, 1),
+        floatingActionButton: _externalConnectionManagement(),
         body: LoadingOverlay(
           color: const Color.fromRGBO(0, 0, 0, 0.5),
           progressIndicator: const CircularProgressIndicator(
@@ -183,7 +185,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
               top: MediaQuery.of(context).orientation == Orientation.portrait
                   ? 5.0
                   : 0.0),
-          padding: const EdgeInsets.only(top: 18.0, bottom: 10.0),
+          padding: const EdgeInsets.only(top: 18.0, bottom: 30.0),
           height: MediaQuery.of(context).size.height * (5.15 / 8),
           decoration: BoxDecoration(
             color: const Color.fromRGBO(31, 51, 71, 1),
@@ -413,6 +415,44 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
             ),
           ),
         ));
+  }
+
+  Widget _externalConnectionManagement() {
+    return OpenContainer(
+      closedColor: const Color.fromRGBO(20, 200, 50, 1),
+      middleColor: const Color.fromRGBO(34, 48, 60, 1),
+      openColor: const Color.fromRGBO(34, 48, 60, 1),
+      closedShape: CircleBorder(),
+      closedElevation: 15.0,
+      transitionDuration: Duration(
+        milliseconds: 500,
+      ),
+      transitionType: ContainerTransitionType.fadeThrough,
+      // onClosed: (val) {
+      //   if (mounted) {
+      //     setState(() {
+      //       this._allConnectionsUserName.toSet().toList();
+      //       this._allUserConnectionActivity.toSet().toList();
+      //     });
+      //   }
+      // },
+      openBuilder: (_, __) {
+        return SearchScreen();
+      },
+      closedBuilder: (_, __) {
+        return Container(
+          padding: EdgeInsets.all(10.0),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.add,
+            color: Colors.white,
+            size: 37.0,
+          ),
+        );
+      },
+    );
   }
 
 }
