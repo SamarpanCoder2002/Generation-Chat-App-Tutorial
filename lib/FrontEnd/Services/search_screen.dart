@@ -14,6 +14,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   List<Map<String, dynamic>> _availableUsers = [];
+  List<Map<String, dynamic>> _sortedAvailableUsers = [];
   List<dynamic> _myConnectionRequestCollection = [];
 
   bool _isLoading = false;
@@ -22,8 +23,30 @@ class _SearchScreenState extends State<SearchScreen> {
       CloudStoreDataManagement();
 
   Future<void> _initialDataFetchAndCheckUp() async {
-    final takeUsers = await _cloudStoreDataManagement.getAllUsersListExceptMyAccount(
-        currentUserEmail: FirebaseAuth.instance.currentUser!.email.toString());
+    if (mounted) {
+      setState(() {
+        this._isLoading = true;
+      });
+    }
+
+    final List<Map<String, dynamic>> takeUsers =
+        await _cloudStoreDataManagement.getAllUsersListExceptMyAccount(
+            currentUserEmail:
+                FirebaseAuth.instance.currentUser!.email.toString());
+
+    final List<Map<String, dynamic>> takeUsersAfterSorted = [];
+
+    if (mounted) {
+      setState(() {
+        takeUsers.forEach((element) {
+          if (mounted) {
+            setState(() {
+              takeUsersAfterSorted.add(element);
+            });
+          }
+        });
+      });
+    }
 
     final List<dynamic> _connectionRequestList =
         await _cloudStoreDataManagement.currentUserConnectionRequestList(
@@ -32,7 +55,14 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) {
       setState(() {
         this._availableUsers = takeUsers;
+        this._sortedAvailableUsers = takeUsersAfterSorted;
         this._myConnectionRequestCollection = _connectionRequestList;
+      });
+    }
+
+    if (mounted) {
+      setState(() {
+        this._isLoading = false;
       });
     }
   }
@@ -50,6 +80,7 @@ class _SearchScreenState extends State<SearchScreen> {
         backgroundColor: const Color.fromRGBO(34, 48, 60, 1),
         body: LoadingOverlay(
           isLoading: this._isLoading,
+          color: Colors.black54,
           child: Container(
             margin: EdgeInsets.all(12.0),
             width: double.maxFinite,
@@ -64,13 +95,62 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ),
                 Container(
+                  width: double.maxFinite,
+                  margin: EdgeInsets.only(top: 20.0, bottom: 20.0),
+                  child: TextField(
+                    autofocus: true,
+                    style: TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search User Name',
+                      hintStyle: TextStyle(color: Colors.white70),
+                      focusedBorder: UnderlineInputBorder(
+                          borderSide:
+                              BorderSide(width: 2.0, color: Colors.lightBlue)),
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide:
+                              BorderSide(width: 2.0, color: Colors.lightBlue)),
+                    ),
+                    onChanged: (writeText) {
+                      if (mounted) {
+                        setState(() {
+                          this._isLoading = true;
+                        });
+                      }
+
+                      if (mounted) {
+                        setState(() {
+                          this._sortedAvailableUsers.clear();
+
+                          print('Available Users: ${this._availableUsers}');
+
+                          this._availableUsers.forEach((userNameMap) {
+                            if (userNameMap.values.first
+                                .toString()
+                                .toLowerCase()
+                                .startsWith('${writeText.toLowerCase()}'))
+                              this._sortedAvailableUsers.add(userNameMap);
+                          });
+                        });
+                      }
+
+                      print(this._sortedAvailableUsers);
+
+                      if (mounted) {
+                        setState(() {
+                          this._isLoading = false;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                Container(
                   margin: EdgeInsets.only(top: 10.0),
                   height: MediaQuery.of(context).size.height - 50,
                   width: double.maxFinite,
                   //color: Colors.red,
                   child: ListView.builder(
                     shrinkWrap: true,
-                    itemCount: this._availableUsers.length,
+                    itemCount: this._sortedAvailableUsers.length,
                     itemBuilder: (connectionContext, index) {
                       return connectionShowUp(index);
                     },
@@ -97,7 +177,7 @@ class _SearchScreenState extends State<SearchScreen> {
             children: [
               Text(
                 this
-                    ._availableUsers[index]
+                    ._sortedAvailableUsers[index]
                     .values
                     .first
                     .toString()
@@ -106,7 +186,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               Text(
                 this
-                    ._availableUsers[index]
+                    ._sortedAvailableUsers[index]
                     .values
                     .first
                     .toString()
@@ -143,15 +223,18 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (mounted) {
                     setState(() {
                       this._myConnectionRequestCollection.add({
-                        this._availableUsers[index].keys.first.toString():
+                        this._sortedAvailableUsers[index].keys.first.toString():
                             OtherConnectionStatus.Request_Pending.toString(),
                       });
                     });
                   }
 
                   await _cloudStoreDataManagement.changeConnectionStatus(
-                      oppositeUserMail:
-                          this._availableUsers[index].keys.first.toString(),
+                      oppositeUserMail: this
+                          ._sortedAvailableUsers[index]
+                          .keys
+                          .first
+                          .toString(),
                       currentUserMail:
                           FirebaseAuth.instance.currentUser!.email.toString(),
                       connectionUpdatedStatus:
@@ -164,11 +247,19 @@ class _SearchScreenState extends State<SearchScreen> {
                     setState(() {
                       this._myConnectionRequestCollection.forEach((element) {
                         if (element.keys.first.toString() ==
-                            this._availableUsers[index].keys.first.toString()) {
+                            this
+                                ._sortedAvailableUsers[index]
+                                .keys
+                                .first
+                                .toString()) {
                           this._myConnectionRequestCollection[this
                               ._myConnectionRequestCollection
                               .indexOf(element)] = {
-                            this._availableUsers[index].keys.first.toString():
+                            this
+                                    ._sortedAvailableUsers[index]
+                                    .keys
+                                    .first
+                                    .toString():
                                 OtherConnectionStatus.Invitation_Accepted
                                     .toString(),
                           };
@@ -176,15 +267,18 @@ class _SearchScreenState extends State<SearchScreen> {
                       });
 
                       // this._myConnectionRequestCollection[index] = {
-                      //   this._availableUsers[index].keys.first.toString():
+                      //   this._sortedAvailableUsers[index].keys.first.toString():
                       //   OtherConnectionStatus.Invitation_Accepted.toString(),
                       // };
                     });
                   }
 
                   await _cloudStoreDataManagement.changeConnectionStatus(
-                      oppositeUserMail:
-                          this._availableUsers[index].keys.first.toString(),
+                      oppositeUserMail: this
+                          ._sortedAvailableUsers[index]
+                          .keys
+                          .first
+                          .toString(),
                       currentUserMail:
                           FirebaseAuth.instance.currentUser!.email.toString(),
                       connectionUpdatedStatus:
@@ -211,7 +305,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     this._myConnectionRequestCollection.forEach((element) {
       if (element.keys.first.toString() ==
-          this._availableUsers[index].keys.first.toString()) {
+          this._sortedAvailableUsers[index].keys.first.toString()) {
         _isUserPresent = true;
         _storeStatus = element.values.first.toString();
       }
@@ -264,44 +358,5 @@ class _SearchScreenState extends State<SearchScreen> {
 
       return Colors.lightBlue;
     }
-  }
-
-  void _connectionStateChanger(
-      {required String buttonName, required int index}) async {
-    // if(mounted){
-    //   setState(() {
-    //     this._isLoading = true;
-    //   });
-    // }
-
-    // if (buttonName == ConnectionStateName.Connect.toString()) {
-    //   if (mounted) {
-    //     //setState(() {
-    //       this._myConnectionRequestCollection.add( {
-    //         this._myConnectionRequestCollection[index].keys.first.toString():
-    //         ConnectionStateName.Pending.toString(),
-    //       });
-    //     //});
-    //   }
-    //
-    //   await _cloudStoreDataManagement.changeConnectionStatus(oppositeUserMail: this._availableUsers[index].keys.first.toString(), currentUserMail: FirebaseAuth.instance.currentUser!.email.toString(), connectionUpdatedStatus: ConnectionStateName.Pending.toString(), currentUserUpdatedConnectionRequest: this._myConnectionRequestCollection);
-    // } else if (buttonName == ConnectionStateName.Accept.toString()) {
-    //   if (mounted) {
-    //     //setState(() {
-    //       this._myConnectionRequestCollection[index] = {
-    //         this._myConnectionRequestCollection[index].keys.first.toString():
-    //             ConnectionStateName.Connected.toString(),
-    //       };
-    //     //});
-    //   }
-    //
-    //   await _cloudStoreDataManagement.changeConnectionStatus(oppositeUserMail: this._availableUsers[index].keys.first.toString(), currentUserMail: FirebaseAuth.instance.currentUser!.email.toString(), connectionUpdatedStatus: ConnectionStateName.Connected.toString(), currentUserUpdatedConnectionRequest: this._myConnectionRequestCollection);
-    // }
-
-    // if(mounted){
-    //   setState(() {
-    //     this._isLoading = false;
-    //   });
-    // }
   }
 }
