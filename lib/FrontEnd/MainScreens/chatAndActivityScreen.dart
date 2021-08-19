@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:generation/FrontEnd/Services/ChatManagement/chat_screen.dart';
 import 'package:generation/FrontEnd/Services/search_screen.dart';
 
 import 'package:loading_overlay/loading_overlay.dart';
@@ -350,7 +351,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                   //   await _chatNotificationStatusCheckAndUpdate(_userName);
                   // },
                   openBuilder: (context, openWidget) {
-                    return Center();
+                    return ChatScreen(userName: _userName,);
 
                       // ChatScreenSetUp(
                       //   _userName,
