@@ -49,3 +49,19 @@ enum OtherConnectionStatus{
   Invitation_Accepted,
   Request_Accepted,
 }
+
+enum ChatMessageTypes{
+  None,
+  Text,
+  Image,
+  Video,
+  Document,
+  Audio,
+  Location,
+}
+
+enum ImageProviderCategory{
+  FileImage,
+  ExactAssetImage,
+  NetworkImage,
+}

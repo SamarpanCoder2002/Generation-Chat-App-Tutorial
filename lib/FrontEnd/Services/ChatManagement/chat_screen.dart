@@ -1,10 +1,24 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
+import 'package:generation/Global_Uses/native_calling.dart';
+import 'package:generation/Global_Uses/show_toast_message.dart';
 
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:animations/animations.dart';
 import 'package:flutter_icons/flutter_icons.dart';
 import 'package:circle_list/circle_list.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:open_file/open_file.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+
+import 'package:generation/Global_Uses/enum_generation.dart';
+import 'package:generation/FrontEnd/Preview/image_preview_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String userName;
@@ -19,92 +33,188 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = false;
   bool _writeTextPresent = false;
   bool _lastDirection = false;
+  bool _showEmojiPicker = false;
 
-  final String _messageAndTimeSeparator = "[[[Message_And_Time_Separator]]]";
+  final FToast _fToast = FToast();
 
-  List<String> _allConversationMessages = [
-    "Samarpan Dasgupta is a Coder[[[Message_And_Time_Separator]]]10:20",
-    "Amitava Garai is a Guitarist[[[Message_And_Time_Separator]]]15:50"
+  List<Map<String, String>> _allConversationMessages = [
+    {"Samarpan Dasgupta": "19:0"},
+    {"Amitava Garai": "20:0"},
   ];
   List<bool> _conversationMessageHolder = [true, false];
+  List<ChatMessageTypes> _chatMessageCategoryHolder = [
+    ChatMessageTypes.Text,
+    ChatMessageTypes.Text,
+  ];
 
   final TextEditingController _typedText = TextEditingController();
 
+  final NativeCallback _nativeCallback = NativeCallback();
+
+  double _chatBoxHeight = 0.0;
+
+  _takePermissionForStorage() async {
+    var status = await Permission.storage.request();
+    if (status == PermissionStatus.granted) {
+      showToast("Thanks For Storage Permission", _fToast,
+          toastColor: Colors.green, fontSize: 16.0);
+    } else {
+      showToast("Some Problem May Be Arrive", _fToast,
+          toastColor: Colors.green, fontSize: 16.0);
+    }
+  }
+
+  @override
+  void initState() {
+    _fToast.init(context);
+
+    _takePermissionForStorage();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
+    this._chatBoxHeight = MediaQuery.of(context).size.height - 160;
+
     return SafeArea(
-      child: Scaffold(
-        backgroundColor: const Color.fromRGBO(34, 48, 60, 1),
-        appBar: AppBar(
-          brightness: Brightness.dark,
-          backgroundColor: const Color.fromRGBO(25, 39, 52, 1),
-          elevation: 0.0,
-          title: Text(widget.userName),
-          leading: Row(
-            children: <Widget>[
-              SizedBox(
-                width: 10.0,
-              ),
-              Expanded(
-                child: OpenContainer(
-                  closedColor: const Color.fromRGBO(25, 39, 52, 1),
-                  middleColor: const Color.fromRGBO(25, 39, 52, 1),
-                  openColor: const Color.fromRGBO(25, 39, 52, 1),
-                  closedShape: CircleBorder(),
-                  closedElevation: 0.0,
-                  transitionType: ContainerTransitionType.fadeThrough,
-                  transitionDuration: Duration(milliseconds: 500),
-                  openBuilder: (_, __) {
-                    return Center();
-                  },
-                  closedBuilder: (_, __) {
-                    return CircleAvatar(
-                      radius: 23.0,
-                      backgroundColor: const Color.fromRGBO(25, 39, 52, 1),
-                      backgroundImage: ExactAssetImage(
-                        "assets/images/google.png",
-                      ),
-                    );
-                  },
+      child: WillPopScope(
+
+        onWillPop: () async{
+          if(this._showEmojiPicker){
+            if(mounted){
+              setState(() {
+                this._showEmojiPicker = false;
+                this._chatBoxHeight += 300;
+              });
+            }
+            return false;
+          }
+          return true;
+        },
+        child: Scaffold(
+          backgroundColor: const Color.fromRGBO(34, 48, 60, 1),
+          appBar: AppBar(
+            brightness: Brightness.dark,
+            backgroundColor: const Color.fromRGBO(25, 39, 52, 1),
+            elevation: 0.0,
+            title: Text(widget.userName),
+            leading: Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 10.0,
+                ),
+                Expanded(
+                  child: OpenContainer(
+                    closedColor: const Color.fromRGBO(25, 39, 52, 1),
+                    middleColor: const Color.fromRGBO(25, 39, 52, 1),
+                    openColor: const Color.fromRGBO(25, 39, 52, 1),
+                    closedShape: CircleBorder(),
+                    closedElevation: 0.0,
+                    transitionType: ContainerTransitionType.fadeThrough,
+                    transitionDuration: Duration(milliseconds: 500),
+                    openBuilder: (_, __) {
+                      return Center();
+                    },
+                    closedBuilder: (_, __) {
+                      return CircleAvatar(
+                        radius: 23.0,
+                        backgroundColor: const Color.fromRGBO(25, 39, 52, 1),
+                        backgroundImage: ExactAssetImage(
+                          "assets/images/google.png",
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                onPressed: () {},
+                icon: Icon(
+                  Icons.call,
+                  color: Colors.green,
                 ),
               ),
             ],
           ),
-          actions: [
-            IconButton(
-              onPressed: () {},
-              icon: Icon(
-                Icons.call,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-        body: LoadingOverlay(
-          isLoading: this._isLoading,
-          color: Colors.black54,
-          child: Container(
-            width: double.maxFinite,
-            height: double.maxFinite,
-            //margin: EdgeInsets.all(12.0),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                Container(
-                  width: double.maxFinite,
-                  height: MediaQuery.of(context).size.height - 160,
-                  padding: EdgeInsets.only(top: 20.0),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: this._allConversationMessages.length,
-                    itemBuilder: (itemBuilderContext, index) {
-                      return textConversationManagement(
-                          itemBuilderContext, index);
-                    },
+          body: LoadingOverlay(
+            isLoading: this._isLoading,
+            color: Colors.black54,
+            child: Container(
+              width: double.maxFinite,
+              height: double.maxFinite,
+              //margin: EdgeInsets.all(12.0),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Container(
+                    width: double.maxFinite,
+                    height: this._chatBoxHeight,
+                    padding: EdgeInsets.only(top: 20.0),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: this._allConversationMessages.length,
+                      itemBuilder: (itemBuilderContext, index) {
+                        if (this._chatMessageCategoryHolder[index] ==
+                            ChatMessageTypes.Text)
+                          return _textConversationManagement(
+                              itemBuilderContext, index);
+                        else if (this._chatMessageCategoryHolder[index] ==
+                            ChatMessageTypes.Image)
+                          return _mediaConversationManagement(
+                              itemBuilderContext, index);
+                        else if (this._chatMessageCategoryHolder[index] ==
+                            ChatMessageTypes.Video)
+                          return _mediaConversationManagement(
+                              itemBuilderContext, index);
+                        return Center();
+                      },
+                    ),
                   ),
-                ),
-                _bottomInsertionPortion(context),
-              ],
+                  _bottomInsertionPortion(context),
+                  this._showEmojiPicker?
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: 300.0,
+                      child: EmojiPicker(
+                        onEmojiSelected: (category, emoji) {
+                          if(mounted){
+                            setState(() {
+                              this._typedText.text += emoji.emoji;
+                              this._typedText.text.isEmpty?
+                                this._writeTextPresent = false:
+                                  this._writeTextPresent = true;
+                            });
+                          }
+                        },
+                        onBackspacePressed: () {
+                          // Backspace-Button tapped logic
+                          // Remove this line to also remove the button in the UI
+                        },
+                        config: Config(
+                            columns: 7,
+                            emojiSizeMax: 32.0,
+                            verticalSpacing: 0,
+                            horizontalSpacing: 0,
+                            initCategory: Category.RECENT,
+                            bgColor: Color(0xFFF2F2F2),
+                            indicatorColor: Colors.blue,
+                            iconColor: Colors.grey,
+                            iconColorSelected: Colors.blue,
+                            progressIndicatorColor: Colors.blue,
+                            showRecentsTab: true,
+                            recentsLimit: 28,
+                            noRecentsText: "No Recents",
+                            noRecentsStyle:
+                            const TextStyle(fontSize: 20, color: Colors.black26),
+                            categoryIcons: const CategoryIcons(),
+                            buttonMode: ButtonMode.MATERIAL
+                        ),
+                      ),
+                    ):SizedBox()
+                ],
+              ),
             ),
           ),
         ),
@@ -155,10 +265,20 @@ class _ChatScreenState extends State<ChatScreen> {
                             )),
                         child: GestureDetector(
                           onTap: () async {
-                            //_imageOrVideoSend(imageSource: ImageSource.camera);
+                            final pickedImage = await ImagePicker().pickImage(
+                                source: ImageSource.camera, imageQuality: 50);
+                            if (pickedImage != null) {
+                              _addSelectedMediaToChat(pickedImage.path);
+                            }
                           },
                           onLongPress: () async {
-                            //_imageOrVideoSend(imageSource: ImageSource.gallery);
+                            final XFile? pickedImage = await ImagePicker()
+                                .pickImage(
+                                    source: ImageSource.gallery,
+                                    imageQuality: 50);
+                            if (pickedImage != null) {
+                              _addSelectedMediaToChat(pickedImage.path);
+                            }
                           },
                           child: Icon(
                             Icons.camera_alt_rounded,
@@ -177,12 +297,58 @@ class _ChatScreenState extends State<ChatScreen> {
                             )),
                         child: GestureDetector(
                           onTap: () async {
-                            // _imageOrVideoSend(
-                            //     imageSource: ImageSource.camera, type: 'video');
+                            if (mounted) {
+                              setState(() {
+                                this._isLoading = true;
+                              });
+                            }
+
+                            final pickedVideo = await ImagePicker().pickVideo(
+                                source: ImageSource.camera,
+                                maxDuration: Duration(seconds: 15));
+
+                            if (pickedVideo != null) {
+                              final String thumbnailPathTake =
+                              await _nativeCallback.getTheVideoThumbnail(
+                                  videoPath: pickedVideo.path);
+
+                              _addSelectedMediaToChat(pickedVideo.path,
+                                  chatMessageTypeTake: ChatMessageTypes.Video,
+                                  thumbnailPath: thumbnailPathTake);
+                            }
+
+                            if (mounted) {
+                              setState(() {
+                                this._isLoading = false;
+                              });
+                            }
                           },
                           onLongPress: () async {
-                            // _imageOrVideoSend(
-                            //     imageSource: ImageSource.gallery, type: 'video');
+                            if (mounted) {
+                              setState(() {
+                                this._isLoading = true;
+                              });
+                            }
+
+                            final pickedVideo = await ImagePicker().pickVideo(
+                                source: ImageSource.gallery,
+                                maxDuration: Duration(seconds: 15));
+
+                            if (pickedVideo != null) {
+                              final String thumbnailPathTake =
+                                  await _nativeCallback.getTheVideoThumbnail(
+                                      videoPath: pickedVideo.path);
+
+                              _addSelectedMediaToChat(pickedVideo.path,
+                                  chatMessageTypeTake: ChatMessageTypes.Video,
+                                  thumbnailPath: thumbnailPathTake);
+                            }
+
+                            if (mounted) {
+                              setState(() {
+                                this._isLoading = false;
+                              });
+                            }
                           },
                           child: Icon(
                             Icons.video_collection,
@@ -278,7 +444,134 @@ class _ChatScreenState extends State<ChatScreen> {
             ));
   }
 
-  Widget textConversationManagement(
+  Widget _timeReFormat(String _willReturnTime) {
+    if (int.parse(_willReturnTime.split(':')[0]) < 10)
+      _willReturnTime = _willReturnTime.replaceRange(
+          0, _willReturnTime.indexOf(':'), '0${_willReturnTime.split(':')[0]}');
+
+    if (int.parse(_willReturnTime.split(':')[1]) < 10)
+      _willReturnTime = _willReturnTime.replaceRange(
+          _willReturnTime.indexOf(':') + 1,
+          _willReturnTime.length,
+          '0${_willReturnTime.split(':')[1]}');
+
+    return Text(
+      _willReturnTime,
+      style: const TextStyle(color: Colors.lightBlue),
+    );
+  }
+
+  Widget _bottomInsertionPortion(BuildContext context) {
+    return Container(
+      width: double.maxFinite,
+      height: 80.0,
+      decoration: BoxDecoration(
+          color: const Color.fromRGBO(25, 39, 52, 1),
+          borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20.0), topRight: Radius.circular(20.0))),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              Icons.emoji_emotions_outlined,
+              color: Colors.amber,
+            ),
+            onPressed: () {
+              print('Clicked Emoji');
+              if(mounted){
+                setState(() {
+                  SystemChannels.textInput.invokeMethod('TextInput.hide');
+                  this._showEmojiPicker = true;
+                  this._chatBoxHeight -= 300;
+                });
+              }
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 10.0, left: 10.0),
+            child: GestureDetector(
+              child: Icon(
+                Entypo.link,
+                color: Colors.lightBlue,
+              ),
+              onTap: _differentChatOptions,
+            ),
+          ),
+          Expanded(
+            child: SizedBox(
+              width: double.maxFinite,
+              height: 60.0,
+              child: TextField(
+                controller: this._typedText,
+                style: TextStyle(color: Colors.white),
+                maxLines: null,
+                decoration: InputDecoration(
+                  hintText: 'Type Here...',
+                  hintStyle: TextStyle(color: Colors.white70),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.lightBlue, width: 2.0),
+                  ),
+                ),
+                onTap: (){
+                  if(mounted){
+                    setState(() {
+                      this._chatBoxHeight += 300;
+                      this._showEmojiPicker = false;
+                    });
+                  }
+                },
+                onChanged: (writeText) {
+                  bool _isEmpty = false;
+                  writeText.isEmpty ? _isEmpty = true : _isEmpty = false;
+
+                  if (mounted) {
+                    setState(() {
+                      this._writeTextPresent = !_isEmpty;
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(left: 15.0, right: 15.0),
+            child: GestureDetector(
+              child: this._writeTextPresent
+                  ? Icon(
+                      Icons.send,
+                      color: Colors.green,
+                    )
+                  : Icon(
+                      Icons.keyboard_voice_rounded,
+                      color: Colors.green,
+                    ),
+              onTap: () {
+                if (this._writeTextPresent) {
+                  final String _messageTime =
+                      "${DateTime.now().hour}:${DateTime.now().minute}";
+                  if (mounted) {
+                    setState(() {
+                      this._allConversationMessages.add({
+                        this._typedText.text: _messageTime,
+                      });
+                      this
+                          ._chatMessageCategoryHolder
+                          .add(ChatMessageTypes.Text);
+                      this._conversationMessageHolder.add(this._lastDirection);
+                      this._lastDirection = !this._lastDirection;
+                      this._typedText.clear();
+                    });
+                  }
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _textConversationManagement(
       BuildContext itemBuilderContext, int index) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -317,141 +610,194 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             child: Text(
-              this
-                  ._allConversationMessages[index]
-                  .split(this._messageAndTimeSeparator)[0],
+              this._allConversationMessages[index].keys.first,
               style: TextStyle(fontSize: 16.0, color: Colors.white),
             ),
             onPressed: () {},
             onLongPress: () {},
           ),
         ),
-        Container(
-          alignment: this._conversationMessageHolder[index]
-              ? Alignment.centerLeft
-              : Alignment.centerRight,
-          margin: this._conversationMessageHolder[index]
-              ? const EdgeInsets.only(
-                  left: 5.0,
-                  bottom: 5.0,
-                  top: 5.0,
-                )
-              : const EdgeInsets.only(
-                  right: 5.0,
-                  bottom: 5.0,
-                  top: 5.0,
-                ),
-          child: _timeReFormat(this
-              ._allConversationMessages[index]
-              .split(this._messageAndTimeSeparator)[1]),
-        ),
+        _conversationMessageTime(
+            this._allConversationMessages[index].values.first, index),
       ],
     );
   }
 
-  Widget _timeReFormat(String _willReturnTime) {
-    if (int.parse(_willReturnTime.split(':')[0]) < 10)
-      _willReturnTime = _willReturnTime.replaceRange(
-          0, _willReturnTime.indexOf(':'), '0${_willReturnTime.split(':')[0]}');
+  Widget _mediaConversationManagement(
+      BuildContext itemBuilderContext, int index) {
+    return Column(
+      children: [
+        Container(
+            height: MediaQuery.of(context).size.height * 0.3,
+            margin: this._conversationMessageHolder[index]
+                ? EdgeInsets.only(
+                    right: MediaQuery.of(context).size.width / 3,
+                    left: 5.0,
+                    top: 30.0,
+                  )
+                : EdgeInsets.only(
+                    left: MediaQuery.of(context).size.width / 3,
+                    right: 5.0,
+                    top: 15.0,
+                  ),
+            alignment: this._conversationMessageHolder[index]
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: OpenContainer(
+              openColor: const Color.fromRGBO(60, 80, 100, 1),
+              closedColor: this._conversationMessageHolder[index]
+                  ? const Color.fromRGBO(60, 80, 100, 1)
+                  : const Color.fromRGBO(102, 102, 255, 1),
+              middleColor: Color.fromRGBO(60, 80, 100, 1),
+              closedElevation: 0.0,
+              closedShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.0),
+              ),
+              transitionDuration: Duration(
+                milliseconds: 400,
+              ),
+              transitionType: ContainerTransitionType.fadeThrough,
+              openBuilder: (context, openWidget) {
+                return ImageViewScreen(
+                  imagePath: this._chatMessageCategoryHolder[index] ==
+                          ChatMessageTypes.Image
+                      ? this._allConversationMessages[index].keys.first
+                      : this
+                          ._allConversationMessages[index]
+                          .keys
+                          .first
+                          .split("+")[0],
+                  imageProviderCategory: ImageProviderCategory.FileImage,
+                );
+              },
+              closedBuilder: (context, closeWidget) => Stack(
+                children: [
+                  Container(
+                    alignment: Alignment.center,
+                    child: PhotoView(
+                      imageProvider: FileImage(File(
+                          this._chatMessageCategoryHolder[index] ==
+                                  ChatMessageTypes.Image
+                              ? this._allConversationMessages[index].keys.first
+                              : this
+                                  ._allConversationMessages[index]
+                                  .keys
+                                  .first
+                                  .split("+")[0])),
+                      loadingBuilder: (context, event) => Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                      errorBuilder: (context, obj, stackTrace) => Center(
+                          child: Text(
+                        'Image not Found',
+                        style: TextStyle(
+                          fontSize: 23.0,
+                          color: Colors.red,
+                          fontFamily: 'Lora',
+                          letterSpacing: 1.0,
+                        ),
+                      )),
+                      enableRotation: true,
+                      minScale: PhotoViewComputedScale.covered,
+                    ),
+                  ),
+                  if (this._chatMessageCategoryHolder[index] ==
+                      ChatMessageTypes.Video)
+                    Center(
+                      child: IconButton(
+                        iconSize: 100.0,
+                        icon: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: () async {
+                          print("Opening Path is: ${this
+                              ._allConversationMessages[index]
+                              .keys
+                              .first
+                              .split("+")[1]}");
 
-    if (int.parse(_willReturnTime.split(':')[1]) < 10)
-      _willReturnTime = _willReturnTime.replaceRange(
-          _willReturnTime.indexOf(':') + 1,
-          _willReturnTime.length,
-          '0${_willReturnTime.split(':')[1]}');
+                          final OpenResult openResult = await OpenFile.open(this
+                              ._allConversationMessages[index]
+                              .keys
+                              .first
+                              .split("+")[1]);
 
-    return Text(
-      _willReturnTime,
-      style: const TextStyle(color: Colors.lightBlue),
+                          openFileResultStatus(openResult: openResult);
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            )),
+        _conversationMessageTime(
+            this._allConversationMessages[index].values.first.split("+")[0],
+            index),
+      ],
     );
   }
 
-  Widget _bottomInsertionPortion(BuildContext context) {
+  Widget _conversationMessageTime(String time, int index) {
     return Container(
-      width: double.maxFinite,
-      height: 80.0,
-      decoration: BoxDecoration(
-          color: const Color.fromRGBO(25, 39, 52, 1),
-          borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20.0), topRight: Radius.circular(20.0))),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(
-              Icons.emoji_emotions_outlined,
-              color: Colors.amber,
+      alignment: this._conversationMessageHolder[index]
+          ? Alignment.centerLeft
+          : Alignment.centerRight,
+      margin: this._conversationMessageHolder[index]
+          ? const EdgeInsets.only(
+              left: 5.0,
+              bottom: 5.0,
+              top: 5.0,
+            )
+          : const EdgeInsets.only(
+              right: 5.0,
+              bottom: 5.0,
+              top: 5.0,
             ),
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 10.0, left: 10.0),
-            child: GestureDetector(
-              child: Icon(
-                Entypo.link,
-                color: Colors.lightBlue,
-              ),
-              onTap: _differentChatOptions,
-            ),
-          ),
-          Expanded(
-            child: SizedBox(
-              width: double.maxFinite,
-              height: 60.0,
-              child: TextField(
-                controller: this._typedText,
-                style: TextStyle(color: Colors.white),
-                maxLines: null,
-                decoration: InputDecoration(
-                  hintText: 'Type Here...',
-                  hintStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.lightBlue, width: 2.0),
-                  ),
-                ),
-                onChanged: (writeText) {
-                  bool _isEmpty = false;
-                  writeText.isEmpty ? _isEmpty = true : _isEmpty = false;
-
-                  if (mounted) {
-                    setState(() {
-                      this._writeTextPresent = !_isEmpty;
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(left: 15.0, right: 15.0),
-            child: GestureDetector(
-              child: this._writeTextPresent
-                  ? Icon(
-                      Icons.send,
-                      color: Colors.green,
-                    )
-                  : Icon(
-                      Icons.keyboard_voice_rounded,
-                      color: Colors.green,
-                    ),
-              onTap: () {
-                if (this._writeTextPresent) {
-                  final String _messageTime =
-                      "${DateTime.now().hour}:${DateTime.now().minute}";
-                  if (mounted) {
-                    setState(() {
-                      this._allConversationMessages.add(
-                          "${this._typedText.text}${this._messageAndTimeSeparator}$_messageTime");
-                      this._conversationMessageHolder.add(this._lastDirection);
-                      this._lastDirection = !this._lastDirection;
-                      this._typedText.clear();
-                    });
-                  }
-                }
-              },
-            ),
-          ),
-        ],
-      ),
+      child: _timeReFormat(time),
     );
+  }
+
+  void _addSelectedMediaToChat(String path,
+      {ChatMessageTypes chatMessageTypeTake = ChatMessageTypes.Image,
+      String thumbnailPath = ''}) {
+    Navigator.pop(context);
+
+    print('Thumbnail Path: $thumbnailPath    ${File(path).path}');
+
+    final String _messageTime =
+        "${DateTime.now().hour}:${DateTime.now().minute}";
+
+    if (mounted) {
+      setState(() {
+        this._allConversationMessages.add({
+          chatMessageTypeTake == ChatMessageTypes.Image
+              ? File(path).path
+              : "$thumbnailPath+${File(path).path}": _messageTime,
+        });
+
+        this._chatMessageCategoryHolder.add(
+            chatMessageTypeTake == ChatMessageTypes.Image
+                ? ChatMessageTypes.Image
+                : ChatMessageTypes.Video);
+
+        this._conversationMessageHolder.add(this._lastDirection);
+        this._lastDirection = !this._lastDirection;
+      });
+    }
+  }
+
+  void openFileResultStatus({required OpenResult openResult}) {
+    if (openResult.type == ResultType.permissionDenied)
+      showToast('Permission Denied to Open File', _fToast,
+          toastColor: Colors.red, fontSize: 16.0);
+    else if (openResult.type == ResultType.noAppToOpen)
+      showToast('No App Found to Open', _fToast,
+          toastColor: Colors.amber, fontSize: 16.0);
+    else if (openResult.type == ResultType.error)
+      showToast('Error in Opening File', _fToast,
+          toastColor: Colors.red, fontSize: 16.0);
+    else if (openResult.type == ResultType.fileNotFound)
+      showToast('Sorry, File Not Found', _fToast,
+          toastColor: Colors.red, fontSize: 16.0);
   }
 }
