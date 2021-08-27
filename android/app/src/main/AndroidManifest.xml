@@ -49,7 +49,7 @@
             android:value="2" />
 
         <meta-data android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyC9HcukzWCC78JTdSAYvMr8Bb7c8oabi2A"/>
+            android:value="Google Map Key Used Here"/>
 
 <!--        For Facebook-->
         <meta-data android:name="com.facebook.sdk.ApplicationId"
