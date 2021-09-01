@@ -266,10 +266,6 @@ class _SearchScreenState extends State<SearchScreen> {
                         }
                       });
 
-                      // this._myConnectionRequestCollection[index] = {
-                      //   this._sortedAvailableUsers[index].keys.first.toString():
-                      //   OtherConnectionStatus.Invitation_Accepted.toString(),
-                      // };
                     });
                   }
 

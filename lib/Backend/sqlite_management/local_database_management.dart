@@ -31,7 +31,8 @@ class LocalDatabase {
   final String _colActivityBGInformation = "Activity_BG_Information";
 
   /// Create Singleton Objects(Only Created once in the whole application)
-  static late LocalDatabase _localStorageHelper = LocalDatabase._createInstance();
+  static late LocalDatabase _localStorageHelper =
+      LocalDatabase._createInstance();
   static late Database _database;
 
   /// Instantiate the obj
@@ -64,16 +65,17 @@ class LocalDatabase {
   }
 
   /// Table for store important data Table
-  Future<void> createTableToStoreImportantData() async {
+  Future<bool> createTableToStoreImportantData() async {
     try {
       final Database db = await this.database;
       await db.execute(
           "CREATE TABLE ${this._importantTableData}($_colUserName TEXT PRIMARY KEY, $_colUserMail TEXT, $_colToken TEXT, $_colProfileImagePath TEXT, $_colProfileImageUrl TEXT, $_colAbout TEXT, $_colWallpaper TEXT, $_colNotification TEXT, $_colMobileNumber TEXT, $_colAccCreationDate TEXT, $_colAccCreationTime TEXT)");
 
       print('User Important table creatred');
-
+      return true;
     } catch (e) {
       print('Error in Create Import Table: ${e.toString()}');
+      return false;
     }
   }
 

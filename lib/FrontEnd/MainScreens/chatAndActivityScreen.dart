@@ -263,24 +263,6 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                     transitionType: ContainerTransitionType.fadeThrough,
                     openBuilder: (_, __) {
                       return Center();
-
-                      //   ProfileImageManagement
-                      //     .allConnectionsProfilePicLocalPath[
-                      // _userName] !=
-                      //     ''
-                      //     ? PreviewImageScreen(
-                      //     imageFile: File(ProfileImageManagement
-                      //         .allConnectionsProfilePicLocalPath[
-                      //     _userName]))
-                      //     : Center(
-                      //   child: Text(
-                      //     'No Profile Image',
-                      //     style: TextStyle(
-                      //       color: Colors.red,
-                      //       fontSize: 20.0,
-                      //     ),
-                      //   ),
-                      // );
                     },
                     closedBuilder: (_, __) {
                       return CircleAvatar(
@@ -302,66 +284,10 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                   openElevation: 0.0,
                   transitionDuration: Duration(milliseconds: 500),
                   transitionType: ContainerTransitionType.fadeThrough,
-                  // onClosed: (value) async {
-                  //   /// Irrespectively make changes when a chat just Close
-                  //   _localStorageHelper
-                  //       .fetchLatestMessage(_userName)
-                  //       .then((Map<String, String> takeLocalData) {
-                  //     if (takeLocalData != null &&
-                  //         takeLocalData.isNotEmpty &&
-                  //         takeLocalData.values.toString().split('+')[0] != '') {
-                  //       if (_allConnectionsLatestMessage[_userName] != null &&
-                  //           _allConnectionsLatestMessage[_userName].isNotEmpty)
-                  //         _allConnectionsLatestMessage[_userName].clear();
-                  //       else {
-                  //         final List<Map<String, String>> tempList = [];
-                  //         _allConnectionsLatestMessage[_userName] = tempList;
-                  //       }
-                  //       if (mounted) {
-                  //         setState(() {
-                  //           print(
-                  //               'Before Add Data On Closed: ${_allConnectionsLatestMessage[_userName]}');
-                  //
-                  //           _allConnectionsLatestMessage[_userName]
-                  //               .add(takeLocalData);
-                  //         });
-                  //       }
-                  //     }
-                  //   });
-                  //
-                  //   _localStorageHelper
-                  //       .extractProfileImageLocalPath(userName: _userName)
-                  //       .then((String profileImageLocalPath) {
-                  //     print(
-                  //         'All Closed: ${ProfileImageManagement.allConnectionsProfilePicLocalPath[_userName]}');
-                  //
-                  //     if (ProfileImageManagement
-                  //         .allConnectionsProfilePicLocalPath[_userName] !=
-                  //         profileImageLocalPath) {
-                  //       if (mounted) {
-                  //         setState(() {
-                  //           ProfileImageManagement
-                  //               .allConnectionsProfilePicLocalPath[
-                  //           _userName] = profileImageLocalPath;
-                  //         });
-                  //       }
-                  //     }
-                  //   });
-                  //
-                  //   await _chatNotificationStatusCheckAndUpdate(_userName);
-                  // },
                   openBuilder: (context, openWidget) {
                     return ChatScreen(userName: _userName,);
 
-                      // ChatScreenSetUp(
-                      //   _userName,
-                      //   ProfileImageManagement
-                      //       .allConnectionsProfilePicLocalPath[
-                      //   _userName] ==
-                      //       null
-                      //       ? ''
-                      //       : ProfileImageManagement
-                      //       .allConnectionsProfilePicLocalPath[_userName]);
+
                   },
                   closedBuilder: (context, closeWidget) {
                     return Container(
@@ -429,14 +355,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
         milliseconds: 500,
       ),
       transitionType: ContainerTransitionType.fadeThrough,
-      // onClosed: (val) {
-      //   if (mounted) {
-      //     setState(() {
-      //       this._allConnectionsUserName.toSet().toList();
-      //       this._allUserConnectionActivity.toSet().toList();
-      //     });
-      //   }
-      // },
+
       openBuilder: (_, __) {
         return SearchScreen();
       },

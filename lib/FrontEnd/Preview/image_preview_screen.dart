@@ -51,9 +51,6 @@ class _ImageViewScreenState extends State<ImageViewScreen> {
 
   _getParticularImage() {
     switch (widget.imageProviderCategory) {
-
-
-
       case ImageProviderCategory.FileImage:
         return FileImage(File(widget.imagePath));
 

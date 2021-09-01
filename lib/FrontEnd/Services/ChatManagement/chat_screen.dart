@@ -17,6 +17,10 @@ import 'package:pdf_viewer_plugin/pdf_viewer_plugin.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import 'package:generation/Global_Uses/native_calling.dart';
 import 'package:generation/Global_Uses/show_toast_message.dart';
@@ -54,17 +58,50 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final NativeCallback _nativeCallback = NativeCallback();
 
+  /// Audio Player and Dio Downloader Initialized
+  final AudioPlayer _justAudioPlayer = AudioPlayer();
+
+  final Record _record = Record();
+
+  /// Some Integer Value Initialized
+  late double _currAudioPlayingTime;
+  int _lastAudioPlayingIndex = 0;
+
+  double _audioPlayingSpeed = 1.0;
+
+  /// Audio Playing Time Related
+  String _totalDuration = '0:00';
+  String _loadingTime = '0:00';
+
   double _chatBoxHeight = 0.0;
+
+  String _hintText = "Type Here...";
+
+  late Directory _audioDirectory;
+
+  /// For Audio Player
+  IconData _iconData = Icons.play_arrow_rounded;
 
   _takePermissionForStorage() async {
     var status = await Permission.storage.request();
     if (status == PermissionStatus.granted) {
-      showToast("Thanks For Storage Permission", _fToast,
-          toastColor: Colors.green, fontSize: 16.0);
+      {
+        showToast("Thanks For Storage Permission", _fToast,
+            toastColor: Colors.green, fontSize: 16.0);
+
+        _makeDirectoryForRecordings();
+      }
     } else {
       showToast("Some Problem May Be Arrive", _fToast,
           toastColor: Colors.green, fontSize: 16.0);
     }
+  }
+
+  _makeDirectoryForRecordings() async {
+    final Directory? directory = await getExternalStorageDirectory();
+
+    _audioDirectory = await Directory(directory!.path + '/Recordings/')
+        .create(); // This directory will create Once in whole Application
   }
 
   @override
@@ -177,6 +214,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         else if (this._chatMessageCategoryHolder[index] ==
                             ChatMessageTypes.Location)
                           return _locationConversationManagement(
+                              itemBuilderContext, index);
+                        else if (this._chatMessageCategoryHolder[index] ==
+                            ChatMessageTypes.Audio)
+                          return _audioConversationManagement(
                               itemBuilderContext, index);
                         return Center();
                       },
@@ -427,7 +468,33 @@ class _ChatScreenState extends State<ChatScreen> {
                             color: Colors.lightGreen,
                           ),
                           onTap: () async {
-                            //await _voiceSend();
+                            final List<String> _allowedExtensions = const [
+                              'mp3',
+                              'm4a',
+                              'wav',
+                              'ogg',
+                            ];
+
+                            final FilePickerResult? _audioFilePickerResult =
+                                await FilePicker.platform.pickFiles(
+                              type: FileType.audio,
+                            );
+
+                            Navigator.pop(context);
+
+                            if (_audioFilePickerResult != null) {
+                              _audioFilePickerResult.files.forEach((element) {
+                                print('Name: ${element.path}');
+                                print('Extension: ${element.extension}');
+                                if (_allowedExtensions
+                                    .contains(element.extension)) {
+                                  _voiceSend(element.path.toString(),
+                                      audioExtension: '.${element.extension}');
+                                } else {
+                                  _voiceSend(element.path.toString());
+                                }
+                              });
+                            }
                           },
                         ),
                       ),
@@ -500,7 +567,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: TextStyle(color: Colors.white),
                 maxLines: null,
                 decoration: InputDecoration(
-                  hintText: 'Type Here...',
+                  hintText: _hintText,
                   hintStyle: TextStyle(color: Colors.white70),
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.lightBlue, width: 2.0),
@@ -534,30 +601,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   ? Icon(
                       Icons.send,
                       color: Colors.green,
+                      size: 30.0,
                     )
                   : Icon(
                       Icons.keyboard_voice_rounded,
                       color: Colors.green,
+                      size: 30.0,
                     ),
-              onTap: () {
-                if (this._writeTextPresent) {
-                  final String _messageTime =
-                      "${DateTime.now().hour}:${DateTime.now().minute}";
-                  if (mounted) {
-                    setState(() {
-                      this._allConversationMessages.add({
-                        this._typedText.text: _messageTime,
-                      });
-                      this
-                          ._chatMessageCategoryHolder
-                          .add(ChatMessageTypes.Text);
-                      this._conversationMessageHolder.add(this._lastDirection);
-                      this._lastDirection = !this._lastDirection;
-                      this._typedText.clear();
-                    });
-                  }
-                }
-              },
+              onTap: this._writeTextPresent ? _sendText : _voiceTake,
             ),
           ),
         ],
@@ -1108,6 +1159,368 @@ class _ChatScreenState extends State<ChatScreen> {
       print('Map Show Error: ${e.toString()}');
       showToast('Map Show Error', this._fToast,
           toastColor: Colors.red, fontSize: 16.0);
+    }
+  }
+
+  Widget _audioConversationManagement(
+      BuildContext itemBuilderContext, int index) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        GestureDetector(
+          onLongPress: () async {},
+          child: Container(
+            margin: this._conversationMessageHolder[index]
+                ? EdgeInsets.only(
+                    right: MediaQuery.of(context).size.width / 3,
+                    left: 5.0,
+                    top: 5.0,
+                  )
+                : EdgeInsets.only(
+                    left: MediaQuery.of(context).size.width / 3,
+                    right: 5.0,
+                    top: 5.0,
+                  ),
+            alignment: this._conversationMessageHolder[index]
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: Container(
+              height: 70.0,
+              width: 250.0,
+              decoration: BoxDecoration(
+                color: this._conversationMessageHolder[index]
+                    ? Color.fromRGBO(60, 80, 100, 1)
+                    : Color.fromRGBO(102, 102, 255, 1),
+                borderRadius: this._conversationMessageHolder[index]
+                    ? BorderRadius.only(
+                        topRight: Radius.circular(40.0),
+                        bottomLeft: Radius.circular(40.0),
+                        bottomRight: Radius.circular(40.0),
+                      )
+                    : BorderRadius.only(
+                        topLeft: Radius.circular(40.0),
+                        bottomLeft: Radius.circular(40.0),
+                        bottomRight: Radius.circular(40.0),
+                      ),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20.0,
+                  ),
+                  GestureDetector(
+                    onLongPress: () => _chatMicrophoneOnLongPressAction(),
+                    onTap: () => chatMicrophoneOnTapAction(index),
+                    child: Icon(
+                      index == _lastAudioPlayingIndex
+                          ? _iconData
+                          : Icons.play_arrow_rounded,
+                      color: Color.fromRGBO(10, 255, 30, 1),
+                      size: 35.0,
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 5.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            margin: EdgeInsets.only(
+                              top: 26.0,
+                            ),
+                            child: LinearPercentIndicator(
+                              percent: _justAudioPlayer.duration == null
+                                  ? 0.0
+                                  : _lastAudioPlayingIndex == index
+                                      ? _currAudioPlayingTime /
+                                                  _justAudioPlayer
+                                                      .duration!.inMicroseconds
+                                                      .ceilToDouble() <=
+                                              1.0
+                                          ? _currAudioPlayingTime /
+                                              _justAudioPlayer
+                                                  .duration!.inMicroseconds
+                                                  .ceilToDouble()
+                                          : 0.0
+                                      : 0,
+                              backgroundColor: Colors.black26,
+                              progressColor:
+                                  this._conversationMessageHolder[index]
+                                      ? Colors.lightBlue
+                                      : Colors.amber,
+                            ),
+                          ),
+                          SizedBox(
+                            height: 10.0,
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(left: 10.0, right: 7.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _lastAudioPlayingIndex == index
+                                          ? _loadingTime
+                                          : '0:00',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      _lastAudioPlayingIndex == index
+                                          ? _totalDuration
+                                          : '',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 15.0),
+                    child: GestureDetector(
+                      child: _lastAudioPlayingIndex != index
+                          ? CircleAvatar(
+                              radius: 23.0,
+                              backgroundColor:
+                                  this._conversationMessageHolder[index]
+                                      ? Color.fromRGBO(60, 80, 100, 1)
+                                      : Color.fromRGBO(102, 102, 255, 1),
+                              backgroundImage: ExactAssetImage(
+                                "assets/images/google.png",
+                              ),
+                            )
+                          : Text(
+                              '${this._audioPlayingSpeed.toString().contains('.0') ? this._audioPlayingSpeed.toString().split('.')[0] : this._audioPlayingSpeed}x',
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 18.0),
+                            ),
+                      onTap: () {
+                        print('Audio Play Speed Tapped');
+                        if (mounted) {
+                          setState(() {
+                            if (this._audioPlayingSpeed != 3.0)
+                              this._audioPlayingSpeed += 0.5;
+                            else
+                              this._audioPlayingSpeed = 1.0;
+
+                            _justAudioPlayer.setSpeed(this._audioPlayingSpeed);
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        _conversationMessageTime(
+            this._allConversationMessages[index].values.first, index),
+      ],
+    );
+  }
+
+  void _voiceSend(String recordedFilePath,
+      {String audioExtension = '.mp3'}) async {
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+
+    if (_justAudioPlayer.duration != null) {
+      if (mounted) {
+        setState(() {
+          _justAudioPlayer.stop();
+          _iconData = Icons.play_arrow_rounded;
+        });
+      }
+    }
+
+    await _justAudioPlayer.setFilePath(recordedFilePath);
+
+    if (_justAudioPlayer.duration!.inMinutes > 20)
+      showToast(
+          "Audio File Duration Can't be greater than 20 minutes", _fToast);
+    else {
+      final String _messageTime =
+          "${DateTime.now().hour}:${DateTime.now().minute}";
+
+      if (mounted) {
+        setState(() {
+          this._allConversationMessages.add({
+            recordedFilePath: _messageTime,
+          });
+          this._chatMessageCategoryHolder.add(ChatMessageTypes.Audio);
+          this._conversationMessageHolder.add(this._lastDirection);
+          this._lastDirection = !this._lastDirection;
+        });
+      }
+    }
+  }
+
+  void chatMicrophoneOnTapAction(int index) async {
+    try {
+      _justAudioPlayer.positionStream.listen((event) {
+        if (mounted) {
+          setState(() {
+            _currAudioPlayingTime = event.inMicroseconds.ceilToDouble();
+            _loadingTime =
+                '${event.inMinutes} : ${event.inSeconds > 59 ? event.inSeconds % 60 : event.inSeconds}';
+          });
+        }
+      });
+
+      _justAudioPlayer.playerStateStream.listen((event) {
+        if (event.processingState == ProcessingState.completed) {
+          _justAudioPlayer.stop();
+          if (mounted) {
+            setState(() {
+              this._loadingTime = '0:00';
+              this._iconData = Icons.play_arrow_rounded;
+            });
+          }
+        }
+      });
+
+      if (_lastAudioPlayingIndex != index) {
+        await _justAudioPlayer
+            .setFilePath(this._allConversationMessages[index].keys.first);
+
+        if (mounted) {
+          setState(() {
+            _lastAudioPlayingIndex = index;
+            _totalDuration =
+                '${_justAudioPlayer.duration!.inMinutes} : ${_justAudioPlayer.duration!.inSeconds > 59 ? _justAudioPlayer.duration!.inSeconds % 60 : _justAudioPlayer.duration!.inSeconds}';
+            _iconData = Icons.pause;
+            this._audioPlayingSpeed = 1.0;
+            _justAudioPlayer.setSpeed(this._audioPlayingSpeed);
+          });
+        }
+
+        await _justAudioPlayer.play();
+      } else {
+        print(_justAudioPlayer.processingState);
+        if (_justAudioPlayer.processingState == ProcessingState.idle) {
+          await _justAudioPlayer
+              .setFilePath(this._allConversationMessages[index].keys.first);
+
+          if (mounted) {
+            setState(() {
+              _lastAudioPlayingIndex = index;
+              _totalDuration =
+                  '${_justAudioPlayer.duration!.inMinutes} : ${_justAudioPlayer.duration!.inSeconds}';
+              _iconData = Icons.pause;
+            });
+          }
+
+          await _justAudioPlayer.play();
+        } else if (_justAudioPlayer.playing) {
+          if (mounted) {
+            setState(() {
+              _iconData = Icons.play_arrow_rounded;
+            });
+          }
+
+          await _justAudioPlayer.pause();
+        } else if (_justAudioPlayer.processingState == ProcessingState.ready) {
+          if (mounted) {
+            setState(() {
+              _iconData = Icons.pause;
+            });
+          }
+
+          await _justAudioPlayer.play();
+        } else if (_justAudioPlayer.processingState ==
+            ProcessingState.completed) {}
+      }
+    } catch (e) {
+      print('Audio Playing Error');
+      showToast('May be Audio File Not Found', _fToast);
+    }
+  }
+
+  void _chatMicrophoneOnLongPressAction() async {
+    if (_justAudioPlayer.playing) {
+      await _justAudioPlayer.stop();
+
+      if (mounted) {
+        setState(() {
+          print('Audio Play Completed');
+          _justAudioPlayer.stop();
+          if (mounted) {
+            setState(() {
+              _loadingTime = '0:00';
+              _iconData = Icons.play_arrow_rounded;
+              _lastAudioPlayingIndex = -1;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  void _sendText() {
+    if (this._writeTextPresent) {
+      final String _messageTime =
+          "${DateTime.now().hour}:${DateTime.now().minute}";
+      if (mounted) {
+        setState(() {
+          this._allConversationMessages.add({
+            this._typedText.text: _messageTime,
+          });
+          this._chatMessageCategoryHolder.add(ChatMessageTypes.Text);
+          this._conversationMessageHolder.add(this._lastDirection);
+          this._lastDirection = !this._lastDirection;
+          this._typedText.clear();
+        });
+      }
+    }
+  }
+
+  void _voiceTake() async {
+    if (!await Permission.microphone.status.isGranted) {
+      final microphoneStatus = await Permission.microphone.request();
+      if (microphoneStatus != PermissionStatus.granted)
+        showToast(
+            "Microphone Permission Required To Record Voice", this._fToast);
+    } else {
+      if (await this._record.isRecording()) {
+        if (mounted) {
+          setState(() {
+            _hintText = 'Type Here...';
+          });
+        }
+        final String? recordedFilePath = await this._record.stop();
+
+        _voiceSend(recordedFilePath.toString());
+      } else {
+        if (mounted) {
+          setState(() {
+            _hintText = 'Recording....';
+          });
+        }
+
+        await this
+            ._record
+            .start(
+              path: '${_audioDirectory.path}${DateTime.now()}.aac',
+            )
+            .then((value) => print("Recording"));
+      }
     }
   }
 }
