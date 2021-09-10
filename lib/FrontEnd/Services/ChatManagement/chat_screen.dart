@@ -1,8 +1,13 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:generation/Backend/firebase/OnlineDatabaseManagement/cloud_data_management.dart';
+import 'package:generation/Backend/sqlite_management/local_database_management.dart';
+import 'package:generation/Global_Uses/constants.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:animations/animations.dart';
 import 'package:flutter_icons/flutter_icons.dart';
@@ -44,6 +49,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final FToast _fToast = FToast();
 
+  String _connectionEmail = "";
+
   List<Map<String, String>> _allConversationMessages = [
     {"Samarpan Dasgupta": "19:0"},
     {"Amitava Garai": "20:0"},
@@ -57,6 +64,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _typedText = TextEditingController();
 
   final NativeCallback _nativeCallback = NativeCallback();
+  final CloudStoreDataManagement _cloudStoreDataManagement =
+      CloudStoreDataManagement();
+  final LocalDatabase _localDatabase = LocalDatabase();
 
   /// Audio Player and Dio Downloader Initialized
   final AudioPlayer _justAudioPlayer = AudioPlayer();
@@ -79,8 +89,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late Directory _audioDirectory;
 
+  late Stream<QuerySnapshot<Map<String, dynamic>>>? _stream;
+
   /// For Audio Player
   IconData _iconData = Icons.play_arrow_rounded;
+
+  final FirestoreFieldConstants _firestoreFieldConstants = FirestoreFieldConstants();
 
   _takePermissionForStorage() async {
     var status = await Permission.storage.request();
@@ -104,11 +118,83 @@ class _ChatScreenState extends State<ChatScreen> {
         .create(); // This directory will create Once in whole Application
   }
 
+  _getConnectionEmail() async{
+    final String? getUserEmail = await _localDatabase.getParticularFieldDataFromImportantTable(userName: widget.userName, getField: GetFieldForImportantDataLocalDatabase.UserEmail);
+
+    if(mounted){
+      setState(() {
+        this._connectionEmail = getUserEmail.toString();
+      });
+    }
+  }
+
+  /// Fetch Real Time Data From Cloud Firestore
+  Future<void> _fetchIncomingMessages() async {
+    final Stream<QuerySnapshot<Map<String, dynamic>>>? realTimeSnapshot =
+    await this._cloudStoreDataManagement.fetchRealTimeDataFromFirestore();
+
+    realTimeSnapshot!.listen((querySnapshot) {
+      querySnapshot.docs.forEach((queryDocumentSnapshot) async {
+        if (queryDocumentSnapshot.id ==
+            FirebaseAuth.instance.currentUser!.email.toString()) {
+          await _checkingForIncomingMessages(
+              queryDocumentSnapshot, querySnapshot.docs);
+        }
+      });
+    });
+  }
+
+  Future<void> _checkingForIncomingMessages(
+      QueryDocumentSnapshot<Map<String, dynamic>> queryDocumentSnapshot,
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
+
+    final Map<String,dynamic> _connectionsList =
+    queryDocumentSnapshot.get(_firestoreFieldConstants.connections);
+
+    List<dynamic>? getIncomingMessages = _connectionsList[this._connectionEmail];
+
+    if(getIncomingMessages != null){
+      await _cloudStoreDataManagement.removeOldMessages(userEmail: this._connectionEmail);
+      getIncomingMessages.forEach((everyMessage) {
+        if(everyMessage.keys.first.toString() == ChatMessageTypes.Text.toString()) {
+          Future.microtask(() {
+            _manageIncomingMessages(everyMessage.values.first);
+          });
+        }
+      });
+    }
+
+    print('Get Incoming Messages: $getIncomingMessages');
+  }
+
+  _manageIncomingMessages(var textMessage)async{
+    await _localDatabase.insertMessageInUserTable(
+        userName: widget.userName,
+        actualMessage: textMessage.keys.first.toString(),
+        chatMessageTypes: ChatMessageTypes.Text,
+        messageHolderType: MessageHolderType.ConnectedUsers,
+        messageDateLocal: DateTime.now().toString().split(" ")[0],
+        messageTimeLocal: textMessage.values.first.toString());
+
+    if (mounted) {
+      setState(() {
+        this._allConversationMessages.add({
+          textMessage.keys.first.toString(): textMessage.values.first.toString(),
+        });
+        this._chatMessageCategoryHolder.add(ChatMessageTypes.Text);
+        this._conversationMessageHolder.add(true);
+      });
+    }
+  }
+
   @override
   void initState() {
     _fToast.init(context);
 
     _takePermissionForStorage();
+    _getConnectionEmail();
+
+    _fetchIncomingMessages();
     super.initState();
   }
 
@@ -1473,19 +1559,47 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _sendText() {
+  void _sendText() async {
     if (this._writeTextPresent) {
+      if (mounted) {
+        setState(() {
+          this._isLoading = true;
+        });
+      }
+
       final String _messageTime =
           "${DateTime.now().hour}:${DateTime.now().minute}";
+
+      await _cloudStoreDataManagement.sendMessageToConnection(
+          connectionUserName: widget.userName,
+          sendMessageData: {
+            ChatMessageTypes.Text.toString(): {
+              this._typedText.text: _messageTime,
+            },
+          });
+
       if (mounted) {
         setState(() {
           this._allConversationMessages.add({
             this._typedText.text: _messageTime,
           });
           this._chatMessageCategoryHolder.add(ChatMessageTypes.Text);
-          this._conversationMessageHolder.add(this._lastDirection);
-          this._lastDirection = !this._lastDirection;
+          this._conversationMessageHolder.add(false);
+        });
+      }
+
+      await _localDatabase.insertMessageInUserTable(
+          userName: widget.userName,
+          actualMessage: this._typedText.text,
+          chatMessageTypes: ChatMessageTypes.Text,
+          messageHolderType: MessageHolderType.Me,
+          messageDateLocal: DateTime.now().toString().split(" ")[0],
+          messageTimeLocal: _messageTime);
+
+      if (mounted) {
+        setState(() {
           this._typedText.clear();
+          this._isLoading = false;
         });
       }
     }

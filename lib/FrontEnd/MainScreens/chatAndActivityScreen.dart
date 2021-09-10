@@ -1,9 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:generation/Backend/firebase/OnlineDatabaseManagement/cloud_data_management.dart';
+import 'package:generation/Backend/sqlite_management/local_database_management.dart';
 import 'package:generation/FrontEnd/Services/ChatManagement/chat_screen.dart';
 import 'package:generation/FrontEnd/Services/search_screen.dart';
-
+import 'package:generation/Global_Uses/constants.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:loading_overlay/loading_overlay.dart';
+
 import 'package:animations/animations.dart';
 
 class ChatAndActivityScreen extends StatefulWidget {
@@ -16,7 +22,102 @@ class ChatAndActivityScreen extends StatefulWidget {
 class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
   bool _isLoading = false;
   final List<String> _allUserConnectionActivity = ['Generation', 'Samarpan'];
-  final List<String> _allConnectionsUserName = ['Samarpan', 'Generation', 'Paulomi', 'Amitava', 'Youtube', 'Sathi'];
+  final List<String> _allConnectionsUserName = [];
+
+  final CloudStoreDataManagement _cloudStoreDataManagement =
+      CloudStoreDataManagement();
+
+  final LocalDatabase _localDatabase = LocalDatabase();
+
+  static final FirestoreFieldConstants _firestoreFieldConstants =
+      FirestoreFieldConstants();
+
+  /// For New Connected User Data Entry
+  Future<void> _checkingForNewConnection(
+      QueryDocumentSnapshot<Map<String, dynamic>> queryDocumentSnapshot,
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
+    if (mounted) {
+      setState(() {
+        this._isLoading = true;
+      });
+    }
+
+    final List<dynamic> _connectionRequestList =
+        queryDocumentSnapshot.get(_firestoreFieldConstants.connectionRequest);
+
+    _connectionRequestList.forEach((connectionRequestData) {
+      if (connectionRequestData.values.first.toString() ==
+              OtherConnectionStatus.Invitation_Accepted.toString() ||
+          connectionRequestData.values.first.toString() ==
+              OtherConnectionStatus.Request_Accepted.toString()) {
+        docs.forEach((everyDocument) async {
+          if (everyDocument.id == connectionRequestData.keys.first.toString()) {
+            final String _connectedUserName =
+                everyDocument.get(_firestoreFieldConstants.userName);
+            final String _token =
+                everyDocument.get(_firestoreFieldConstants.token);
+            final String _about =
+                everyDocument.get(_firestoreFieldConstants.about);
+            final String _accCreationDate =
+                everyDocument.get(_firestoreFieldConstants.creationDate);
+            final String _accCreationTime =
+                everyDocument.get(_firestoreFieldConstants.creationTime);
+
+            if (mounted) {
+              setState(() {
+                if (!this._allConnectionsUserName.contains(_connectedUserName))
+                  this._allConnectionsUserName.add(_connectedUserName);
+              });
+            }
+
+
+
+            final bool _newConnectionUserNameInserted =
+                await _localDatabase.insertOrUpdateDataForThisAccount(
+                    userName: _connectedUserName,
+                    userMail: everyDocument.id,
+                    userToken: _token,
+                    userAbout: _about,
+                    userAccCreationDate: _accCreationDate,
+                    userAccCreationTime: _accCreationTime);
+
+            if (_newConnectionUserNameInserted) {
+              await _localDatabase.createTableForEveryUser(
+                  userName: _connectedUserName);
+            }
+          }
+        });
+      }
+    });
+
+    if (mounted) {
+      setState(() {
+        this._isLoading = false;
+      });
+    }
+  }
+
+  /// Fetch Real Time Data From Cloud Firestore
+  Future<void> _fetchRealTimeDataFromCloudStorage() async {
+    final realTimeSnapshot =
+        await this._cloudStoreDataManagement.fetchRealTimeDataFromFirestore();
+
+    realTimeSnapshot!.listen((querySnapshot) {
+      querySnapshot.docs.forEach((queryDocumentSnapshot) async {
+        if (queryDocumentSnapshot.id ==
+            FirebaseAuth.instance.currentUser!.email.toString()) {
+          await _checkingForNewConnection(
+              queryDocumentSnapshot, querySnapshot.docs);
+        }
+      });
+    });
+  }
+
+  @override
+  void initState() {
+    _fetchRealTimeDataFromCloudStorage();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +154,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
           : MediaQuery.of(context).size.height * (3 / 8),
       child: ListView.builder(
         scrollDirection: Axis.horizontal, // Make ListView Horizontally
-        itemCount:_allUserConnectionActivity.length,
+        itemCount: _allUserConnectionActivity.length,
         itemBuilder: (context, position) {
           return _activityCollectionList(context, position);
         },
@@ -180,54 +281,57 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
   }
 
   Widget _connectionList(BuildContext context) {
-    return SafeArea(
-        child: Container(
-          margin: EdgeInsets.only(
-              top: MediaQuery.of(context).orientation == Orientation.portrait
-                  ? 5.0
-                  : 0.0),
-          padding: const EdgeInsets.only(top: 18.0, bottom: 30.0),
-          height: MediaQuery.of(context).size.height * (5.15 / 8),
-          decoration: BoxDecoration(
-            color: const Color.fromRGBO(31, 51, 71, 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10.0,
-                spreadRadius: 0.0,
-                offset: const Offset(0.0, -5.0), // shadow direction: bottom right
-              )
-            ],
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(40.0), topRight: Radius.circular(40.0)),
-            border: Border.all(
-              color: Colors.black26,
-              width: 1.0,
-            ),
+    return LoadingOverlay(
+      isLoading: this._isLoading,
+      child: Container(
+        margin: EdgeInsets.only(
+            top: MediaQuery.of(context).orientation == Orientation.portrait
+                ? 5.0
+                : 0.0),
+        padding: const EdgeInsets.only(top: 18.0, bottom: 30.0),
+        height: MediaQuery.of(context).size.height * (5.15 / 8),
+        decoration: BoxDecoration(
+          color: const Color.fromRGBO(31, 51, 71, 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10.0,
+              spreadRadius: 0.0,
+              offset: const Offset(0.0, -5.0), // shadow direction: bottom right
+            )
+          ],
+          borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(40.0), topRight: Radius.circular(40.0)),
+          border: Border.all(
+            color: Colors.black26,
+            width: 1.0,
           ),
-          child: ReorderableListView.builder(
-            onReorder: (first, last) {
-              // if (mounted) {
-              //   setState(() {
-              //     final String _draggableConnection =
-              //     this._allConnectionsUserName.removeAt(first);
-              //
-              //     this._allConnectionsUserName.insert(
-              //         last >= this._allConnectionsUserName.length
-              //             ? this._allConnectionsUserName.length
-              //             : last > first
-              //             ? --last
-              //             : last,
-              //         _draggableConnection);
-              //   });
-              // }
-            },
-            itemCount: _allConnectionsUserName.length,
-            itemBuilder: (context, position) {
-              return chatTileContainer(context, position, _allConnectionsUserName[position]);
-            },
-          ),
-        ));
+        ),
+        child: ReorderableListView.builder(
+          onReorder: (first, last) {
+            // if (mounted) {
+            //   setState(() {
+            //     final String _draggableConnection =
+            //     this._allConnectionsUserName.removeAt(first);
+            //
+            //     this._allConnectionsUserName.insert(
+            //         last >= this._allConnectionsUserName.length
+            //             ? this._allConnectionsUserName.length
+            //             : last > first
+            //             ? --last
+            //             : last,
+            //         _draggableConnection);
+            //   });
+            // }
+          },
+          itemCount: _allConnectionsUserName.length,
+          itemBuilder: (context, position) {
+            return chatTileContainer(
+                context, position, _allConnectionsUserName[position]);
+          },
+        ),
+      ),
+    );
   }
 
   Widget chatTileContainer(BuildContext context, int index, String _userName) {
@@ -269,7 +373,7 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                         radius: 30.0,
                         backgroundColor: const Color.fromRGBO(31, 51, 71, 1),
                         backgroundImage:
-                        ExactAssetImage('assets/images/google.png'),
+                            ExactAssetImage('assets/images/google.png'),
                         //getProperImageProviderForConnectionsCollection(
                         //    _userName),
                       );
@@ -285,9 +389,9 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                   transitionDuration: Duration(milliseconds: 500),
                   transitionType: ContainerTransitionType.fadeThrough,
                   openBuilder: (context, openWidget) {
-                    return ChatScreen(userName: _userName,);
-
-
+                    return ChatScreen(
+                      userName: _userName,
+                    );
                   },
                   closedBuilder: (context, closeWidget) {
                     return Container(
@@ -316,7 +420,10 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
 
                           /// For Extract latest Conversation Message
 //                          _latestDataForConnectionExtractPerfectly(_userName)
-                        Text('Hello Sam', style: TextStyle(color: Colors.white70),),
+                          Text(
+                            'Hello Sam',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                         ],
                       ),
                     );
@@ -331,9 +438,14 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
                     ),
                     child: Column(
                       children: [
-                          Text('12:00'),
-                          SizedBox(height: 10.0,),
-                          Icon(Icons.notifications_active_outlined, color: Colors.green,),
+                        Text('12:00'),
+                        SizedBox(
+                          height: 10.0,
+                        ),
+                        Icon(
+                          Icons.notifications_active_outlined,
+                          color: Colors.green,
+                        ),
                       ],
                     ),
                   ),
@@ -355,7 +467,6 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
         milliseconds: 500,
       ),
       transitionType: ContainerTransitionType.fadeThrough,
-
       openBuilder: (_, __) {
         return SearchScreen();
       },
@@ -374,5 +485,4 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
       },
     );
   }
-
 }

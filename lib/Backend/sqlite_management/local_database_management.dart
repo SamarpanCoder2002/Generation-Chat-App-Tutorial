@@ -30,6 +30,13 @@ class LocalDatabase {
   final String _colActivityExtraText = "Activity_Extra_Text";
   final String _colActivityBGInformation = "Activity_BG_Information";
 
+  /// For Every User
+  final String _colActualMessage = "Message";
+  final String _colMessageType = "Message_Type";
+  final String _colMessageDate = "Message_Date";
+  final String _colMessageTime = "Message_Time";
+  final String _colMessageHolder = "Message_Holder";
+
   /// Create Singleton Objects(Only Created once in the whole application)
   static late LocalDatabase _localStorageHelper =
       LocalDatabase._createInstance();
@@ -65,22 +72,20 @@ class LocalDatabase {
   }
 
   /// Table for store important data Table
-  Future<bool> createTableToStoreImportantData() async {
+  Future<void> createTableToStoreImportantData() async {
     try {
       final Database db = await this.database;
       await db.execute(
           "CREATE TABLE ${this._importantTableData}($_colUserName TEXT PRIMARY KEY, $_colUserMail TEXT, $_colToken TEXT, $_colProfileImagePath TEXT, $_colProfileImageUrl TEXT, $_colAbout TEXT, $_colWallpaper TEXT, $_colNotification TEXT, $_colMobileNumber TEXT, $_colAccCreationDate TEXT, $_colAccCreationTime TEXT)");
 
       print('User Important table creatred');
-      return true;
     } catch (e) {
       print('Error in Create Import Table: ${e.toString()}');
-      return false;
     }
   }
 
   /// Insert or Update From Important Data Table
-  Future<void> insertOrUpdateDataForThisAccount({
+  Future<bool> insertOrUpdateDataForThisAccount({
     required String userName,
     required String userMail,
     required String userToken,
@@ -117,8 +122,55 @@ class LocalDatabase {
 
         await db.insert(this._importantTableData, _accountData);
       }
+      return true;
     } catch (e) {
-      print('Error in Insert or Update Important Data Table: ${e.toString()}');
+      print('Error in Insert or Update Important Data Table');
+      return false;
+    }
+  }
+
+  Future<String?> getParticularFieldDataFromImportantTable(
+      {required String userName,
+      required GetFieldForImportantDataLocalDatabase getField}) async {
+    try {
+      final Database db = await this.database;
+
+      final String? _particularSearchField =
+          _getFieldNameHelpWithEnumerators(getField);
+
+      List<Map<String, Object?>> getResult = await db.rawQuery(
+          "SELECT $_particularSearchField FROM ${this._importantTableData} WHERE $_colUserName = '$userName'");
+
+      return getResult[0].values.first.toString();
+    } catch (e) {
+      print(
+          'Error in getParticularFieldDataFromImportantTable: ${e.toString()}');
+    }
+  }
+
+  String? _getFieldNameHelpWithEnumerators(
+      GetFieldForImportantDataLocalDatabase getField) {
+    switch (getField) {
+      case GetFieldForImportantDataLocalDatabase.UserEmail:
+        return this._colUserMail;
+      case GetFieldForImportantDataLocalDatabase.Token:
+        return this._colToken;
+      case GetFieldForImportantDataLocalDatabase.ProfileImagePath:
+        return this._colProfileImagePath;
+      case GetFieldForImportantDataLocalDatabase.ProfileImageUrl:
+        return this._colProfileImageUrl;
+      case GetFieldForImportantDataLocalDatabase.About:
+        return this._colAbout;
+      case GetFieldForImportantDataLocalDatabase.WallPaper:
+        return this._colWallpaper;
+      case GetFieldForImportantDataLocalDatabase.MobileNumber:
+        return this._colMobileNumber;
+      case GetFieldForImportantDataLocalDatabase.Notification:
+        return this._colNotification;
+      case GetFieldForImportantDataLocalDatabase.AccountCreationDate:
+        return this._colAccCreationDate;
+      case GetFieldForImportantDataLocalDatabase.AccountCreationTime:
+        return this._colAccCreationTime;
     }
   }
 
@@ -164,6 +216,42 @@ class LocalDatabase {
     } catch (e) {
       print('Error: Activity Table Data insertion Error: ${e.toString()}');
       return false;
+    }
+  }
+
+  Future<void> createTableForEveryUser({required String userName}) async {
+    try {
+      final Database db = await this.database;
+
+      await db.execute(
+          "CREATE TABLE $userName($_colActualMessage TEXT, $_colMessageType TEXT, $_colMessageHolder TEXT, $_colMessageDate TEXT, $_colMessageTime TEXT)");
+    } catch (e) {
+      print("Error in Create Table For Every User: ${e.toString()}");
+    }
+  }
+
+  Future<void> insertMessageInUserTable(
+      {required String userName,
+      required String actualMessage,
+      required ChatMessageTypes chatMessageTypes,
+      required MessageHolderType messageHolderType,
+      required String messageDateLocal,
+      required String messageTimeLocal}) async {
+    try {
+      final Database db = await this.database;
+
+      Map<String, String> tempMap = Map<String, String>();
+
+      tempMap[this._colActualMessage] = actualMessage;
+      tempMap[this._colMessageType] = chatMessageTypes.toString();
+      tempMap[this._colMessageHolder] = messageHolderType.toString();
+      tempMap[this._colMessageDate] = messageDateLocal;
+      tempMap[this._colMessageTime] = messageTimeLocal;
+
+      final int rowAffected = await db.insert(userName, tempMap);
+      print('Row Affected: $rowAffected');
+    } catch (e) {
+      print('Error in Insert Message In User Table: ${e.toString()}');
     }
   }
 }

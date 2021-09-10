@@ -265,11 +265,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           };
                         }
                       });
-
                     });
                   }
 
                   await _cloudStoreDataManagement.changeConnectionStatus(
+                      storeDataAlsoInConnections: true,
                       oppositeUserMail: this
                           ._sortedAvailableUsers[index]
                           .keys

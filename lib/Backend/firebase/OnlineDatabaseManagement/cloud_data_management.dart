@@ -1,6 +1,12 @@
+import 'package:flutter/material.dart';
+import 'package:generation/Backend/sqlite_management/local_database_management.dart';
+import 'package:generation/Global_Uses/constants.dart';
+import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CloudStoreDataManagement {
   final _collectionName = 'generation_users';
@@ -39,7 +45,7 @@ class CloudStoreDataManagement {
         "about": userAbout,
         "activity": [],
         "connection_request": [],
-        "connections": [],
+        "connections": {},
         "creation_date": currDate,
         "creation_time": currTime,
         "phone_number": "",
@@ -157,8 +163,12 @@ class CloudStoreDataManagement {
       {required String oppositeUserMail,
       required String currentUserMail,
       required String connectionUpdatedStatus,
-      required List<dynamic> currentUserUpdatedConnectionRequest}) async {
+      required List<dynamic> currentUserUpdatedConnectionRequest,
+        bool storeDataAlsoInConnections = false,
+      }) async {
     try {
+
+      print('Come here');
       /// Opposite Connection database Update
       final DocumentSnapshot<Map<String, dynamic>> documentSnapshot =
           await FirebaseFirestore.instance
@@ -169,27 +179,31 @@ class CloudStoreDataManagement {
 
       print('Map: $map');
 
-      List<dynamic> _oppositeConnections = map!["connection_request"];
+      List<dynamic> _oppositeConnectionsRequestsList = map!["connection_request"];
 
       int index = -1;
 
-      _oppositeConnections.forEach((element) {
+      _oppositeConnectionsRequestsList.forEach((element) {
         if (element.keys.first.toString() == currentUserMail)
-          index = _oppositeConnections.indexOf(element);
+          index = _oppositeConnectionsRequestsList.indexOf(element);
       });
 
-      if(index > -1)
-        _oppositeConnections.removeAt(index);
+      if (index > -1) _oppositeConnectionsRequestsList.removeAt(index);
 
-      print('Opposite Connections: $_oppositeConnections');
+      print('Opposite Connections: $_oppositeConnectionsRequestsList');
 
-      _oppositeConnections.add({
+      _oppositeConnectionsRequestsList.add({
         currentUserMail: connectionUpdatedStatus,
       });
 
-      print('Opposite Connections: $_oppositeConnections');
+      print('Opposite Connections: $_oppositeConnectionsRequestsList');
 
-      map["connection_request"] = _oppositeConnections;
+      map["connection_request"] = _oppositeConnectionsRequestsList;
+
+      if(storeDataAlsoInConnections)
+      map[FirestoreFieldConstants().connections].addAll({
+        currentUserMail: [],
+      });
 
       await FirebaseFirestore.instance
           .doc('${this._collectionName}/$oppositeUserMail')
@@ -202,11 +216,98 @@ class CloudStoreDataManagement {
       currentUserMap!["connection_request"] =
           currentUserUpdatedConnectionRequest;
 
+      if(storeDataAlsoInConnections)
+      currentUserMap[FirestoreFieldConstants().connections].addAll({
+        oppositeUserMail: [],
+      });
+
       await FirebaseFirestore.instance
           .doc('${this._collectionName}/$currentUserMail')
           .update(currentUserMap);
     } catch (e) {
       print('Error in Change Connection Status: ${e.toString()}');
+    }
+  }
+
+  Future<Stream<QuerySnapshot<Map<String, dynamic>>>?>
+      fetchRealTimeDataFromFirestore() async {
+    try {
+      return FirebaseFirestore.instance
+          .collection(this._collectionName)
+          .snapshots();
+    } catch (e) {
+      print('Error in Fetch Real Time Data : ${e.toString()}');
+      return null;
+    }
+  }
+
+  Future<void> sendMessageToConnection(
+      {required String connectionUserName,
+      required Map<String, Map<String, String>> sendMessageData}) async {
+    try {
+      final LocalDatabase _localDatabase = LocalDatabase();
+
+      final String? currentUserEmail = FirebaseAuth.instance.currentUser!.email;
+
+      final String? _getConnectedUserEmail =
+          await _localDatabase.getParticularFieldDataFromImportantTable(
+              userName: connectionUserName,
+              getField: GetFieldForImportantDataLocalDatabase.UserEmail);
+
+      final DocumentSnapshot<Map<String, dynamic>> documentSnapshot =
+          await FirebaseFirestore.instance
+              .doc("${this._collectionName}/$_getConnectedUserEmail")
+              .get();
+
+      final Map<String, dynamic>? connectedUserData = documentSnapshot.data();
+
+      List<dynamic>? getOldMessages =
+          connectedUserData![FirestoreFieldConstants().connections]
+              [currentUserEmail.toString()];
+      if (getOldMessages == null) getOldMessages = [];
+
+      getOldMessages.add(sendMessageData);
+
+      connectedUserData[FirestoreFieldConstants().connections]
+          [currentUserEmail.toString()] = getOldMessages;
+
+      await FirebaseFirestore.instance
+          .doc("${this._collectionName}/$_getConnectedUserEmail")
+          .update({
+        FirestoreFieldConstants().connections:
+            connectedUserData[FirestoreFieldConstants().connections],
+      }).whenComplete(() {
+        print('Data Send Completed');
+      });
+    } catch (e) {
+      print('error in Send Data: ${e.toString()}');
+    }
+  }
+
+  Future<void> removeOldMessages({required String userEmail})async{
+    try {
+      final String? currentUserEmail = FirebaseAuth.instance.currentUser!.email;
+
+      final DocumentSnapshot<Map<String, dynamic>> documentSnapshot =
+      await FirebaseFirestore.instance
+          .doc("${this._collectionName}/$userEmail")
+          .get();
+
+      final Map<String, dynamic>? connectedUserData = documentSnapshot.data();
+
+      connectedUserData![FirestoreFieldConstants().connections]
+      [currentUserEmail.toString()] = [];
+
+      await FirebaseFirestore.instance
+          .doc("${this._collectionName}/$userEmail")
+          .update({
+        FirestoreFieldConstants().connections:
+        connectedUserData[FirestoreFieldConstants().connections],
+      }).whenComplete(() {
+        print('Data Deletion Completed');
+      });
+    } catch (e) {
+      print('error in Send Data: ${e.toString()}');
     }
   }
 }

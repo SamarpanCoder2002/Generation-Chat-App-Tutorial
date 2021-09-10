@@ -65,3 +65,21 @@ enum ImageProviderCategory{
   ExactAssetImage,
   NetworkImage,
 }
+
+enum MessageHolderType{
+  Me,
+  ConnectedUsers,
+}
+
+enum GetFieldForImportantDataLocalDatabase{
+  UserEmail,
+  Token,
+  ProfileImagePath,
+  ProfileImageUrl,
+  About,
+  WallPaper,
+  MobileNumber,
+  Notification,
+  AccountCreationDate,
+  AccountCreationTime,
+}
