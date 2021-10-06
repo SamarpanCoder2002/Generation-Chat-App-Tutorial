@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -48,6 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _showEmojiPicker = false;
 
   final FToast _fToast = FToast();
+  final Dio dio = Dio();
 
   String _connectionEmail = "";
 
@@ -89,19 +91,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late Directory _audioDirectory;
 
-  late Stream<QuerySnapshot<Map<String, dynamic>>>? _stream;
-
   /// For Audio Player
   IconData _iconData = Icons.play_arrow_rounded;
 
-  final FirestoreFieldConstants _firestoreFieldConstants = FirestoreFieldConstants();
+  final FirestoreFieldConstants _firestoreFieldConstants =
+      FirestoreFieldConstants();
 
   _takePermissionForStorage() async {
     var status = await Permission.storage.request();
     if (status == PermissionStatus.granted) {
       {
-        showToast("Thanks For Storage Permission", _fToast,
-            toastColor: Colors.green, fontSize: 16.0);
+        // showToast("Thanks For Storage Permission", _fToast,
+        //     toastColor: Colors.green, fontSize: 16.0);
 
         _makeDirectoryForRecordings();
       }
@@ -118,10 +119,13 @@ class _ChatScreenState extends State<ChatScreen> {
         .create(); // This directory will create Once in whole Application
   }
 
-  _getConnectionEmail() async{
-    final String? getUserEmail = await _localDatabase.getParticularFieldDataFromImportantTable(userName: widget.userName, getField: GetFieldForImportantDataLocalDatabase.UserEmail);
+  _getConnectionEmail() async {
+    final String? getUserEmail =
+        await _localDatabase.getParticularFieldDataFromImportantTable(
+            userName: widget.userName,
+            getField: GetFieldForImportantDataLocalDatabase.UserEmail);
 
-    if(mounted){
+    if (mounted) {
       setState(() {
         this._connectionEmail = getUserEmail.toString();
       });
@@ -130,44 +134,58 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Fetch Real Time Data From Cloud Firestore
   Future<void> _fetchIncomingMessages() async {
-    final Stream<QuerySnapshot<Map<String, dynamic>>>? realTimeSnapshot =
-    await this._cloudStoreDataManagement.fetchRealTimeDataFromFirestore();
+    final Stream<DocumentSnapshot<Map<String, dynamic>>>? realTimeSnapshot =
+        await this._cloudStoreDataManagement.fetchRealTimeMessages();
 
-    realTimeSnapshot!.listen((querySnapshot) {
-      querySnapshot.docs.forEach((queryDocumentSnapshot) async {
-        if (queryDocumentSnapshot.id ==
-            FirebaseAuth.instance.currentUser!.email.toString()) {
-          await _checkingForIncomingMessages(
-              queryDocumentSnapshot, querySnapshot.docs);
-        }
-      });
+    realTimeSnapshot!.listen((documentSnapShot) async {
+      await _checkingForIncomingMessages(documentSnapShot.data());
     });
   }
 
-  Future<void> _checkingForIncomingMessages(
-      QueryDocumentSnapshot<Map<String, dynamic>> queryDocumentSnapshot,
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) async {
+  Future<void> _checkingForIncomingMessages(Map<String, dynamic>? docs) async {
+    final Map<String, dynamic> _connectionsList =
+        docs![_firestoreFieldConstants.connections];
 
-    final Map<String,dynamic> _connectionsList =
-    queryDocumentSnapshot.get(_firestoreFieldConstants.connections);
+    List<dynamic>? getIncomingMessages =
+        _connectionsList[this._connectionEmail];
 
-    List<dynamic>? getIncomingMessages = _connectionsList[this._connectionEmail];
-
-    if(getIncomingMessages != null){
-      await _cloudStoreDataManagement.removeOldMessages(userEmail: this._connectionEmail);
-      getIncomingMessages.forEach((everyMessage) {
-        if(everyMessage.keys.first.toString() == ChatMessageTypes.Text.toString()) {
-          Future.microtask(() {
-            _manageIncomingMessages(everyMessage.values.first);
-          });
-        }
+    if (getIncomingMessages != null) {
+      await _cloudStoreDataManagement
+          .removeOldMessages(connectionEmail: this._connectionEmail)
+          .whenComplete(() {
+        getIncomingMessages.forEach((everyMessage) {
+          if (everyMessage.keys.first.toString() ==
+              ChatMessageTypes.Text.toString()) {
+            Future.microtask(() {
+              _manageIncomingTextMessages(everyMessage.values.first);
+            });
+          } else if (everyMessage.keys.first.toString() ==
+              ChatMessageTypes.Audio.toString()) {
+            Future.microtask(() {
+              _manageIncomingMediaMessages(
+                  everyMessage.values.first, ChatMessageTypes.Audio);
+            });
+          } else if (everyMessage.keys.first.toString() ==
+              ChatMessageTypes.Image.toString()) {
+            Future.microtask(() {
+              _manageIncomingMediaMessages(
+                  everyMessage.values.first, ChatMessageTypes.Image);
+            });
+          } else if (everyMessage.keys.first.toString() ==
+              ChatMessageTypes.Video.toString()) {
+            Future.microtask(() {
+              _manageIncomingMediaMessages(
+                  everyMessage.values.first, ChatMessageTypes.Video);
+            });
+          }
+        });
       });
     }
 
     print('Get Incoming Messages: $getIncomingMessages');
   }
 
-  _manageIncomingMessages(var textMessage)async{
+  _manageIncomingTextMessages(var textMessage) async {
     await _localDatabase.insertMessageInUserTable(
         userName: widget.userName,
         actualMessage: textMessage.keys.first.toString(),
@@ -179,11 +197,124 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) {
       setState(() {
         this._allConversationMessages.add({
-          textMessage.keys.first.toString(): textMessage.values.first.toString(),
+          textMessage.keys.first.toString():
+              textMessage.values.first.toString(),
         });
         this._chatMessageCategoryHolder.add(ChatMessageTypes.Text);
         this._conversationMessageHolder.add(true);
       });
+    }
+  }
+
+  _manageIncomingMediaMessages(
+      var mediaMessage, ChatMessageTypes chatMessageTypes) async {
+    String refName = "";
+    String extension = "";
+    late String thumbnailFileRemotePath;
+
+    String videoThumbnailLocalPath = "";
+
+    String actualFileRemotePath = chatMessageTypes == ChatMessageTypes.Video
+        ? mediaMessage.keys.first.toString().split("+")[0]
+        : mediaMessage.keys.first.toString();
+
+    if (chatMessageTypes == ChatMessageTypes.Image) {
+      refName = "/Images/";
+      extension = '.png';
+    } else if (chatMessageTypes == ChatMessageTypes.Video) {
+      refName = "/Videos/";
+      extension = '.mp4';
+      thumbnailFileRemotePath =
+          mediaMessage.keys.first.toString().split("+")[1];
+    } else if (chatMessageTypes == ChatMessageTypes.Document) {
+      refName = "/Documents/";
+      extension = '.pdf';
+    } else if (chatMessageTypes == ChatMessageTypes.Audio) {
+      refName = "/Audio/";
+      extension = '.mp3';
+    }
+
+    if (mounted) {
+      setState(() {
+        this._isLoading = true;
+      });
+    }
+
+    final Directory? directory = await getExternalStorageDirectory();
+    print('Directory Path: ${directory!.path}');
+
+    final storageDirectory = await Directory(directory.path + refName)
+        .create(); // Create New Folder about the desire location
+
+    final String mediaFileLocalPath =
+        "${storageDirectory.path}${DateTime.now().toString().split(" ").join("")}$extension";
+
+    if (chatMessageTypes == ChatMessageTypes.Video) {
+      final storageDirectory = await Directory(directory.path + "/.Thumbnails/")
+          .create(); // Create New Folder about the desire location
+
+      videoThumbnailLocalPath =
+          "${storageDirectory.path}${DateTime.now().toString().split(" ").join("")}.png";
+    }
+
+    try {
+      print("Media Saved Path: $mediaFileLocalPath");
+
+      await dio
+          .download(actualFileRemotePath, mediaFileLocalPath)
+          .whenComplete(() async {
+        if (chatMessageTypes == ChatMessageTypes.Video) {
+          await dio
+              .download(thumbnailFileRemotePath, videoThumbnailLocalPath)
+              .whenComplete(() async {
+            await _storeAndShowIncomingMessageData(
+                mediaFileLocalPath:
+                    "$videoThumbnailLocalPath+$mediaFileLocalPath",
+                chatMessageTypes: chatMessageTypes,
+                mediaMessage: mediaMessage);
+          });
+        } else {
+          await _storeAndShowIncomingMessageData(
+              mediaFileLocalPath: mediaFileLocalPath,
+              chatMessageTypes: chatMessageTypes,
+              mediaMessage: mediaMessage);
+        }
+      });
+    } catch (e) {
+      print("Error in Media Downloading: ${e.toString()}");
+    }
+  }
+
+  Future<void> _storeAndShowIncomingMessageData(
+      {required String mediaFileLocalPath,
+      required ChatMessageTypes chatMessageTypes,
+      required var mediaMessage}) async {
+    try {
+      await _localDatabase.insertMessageInUserTable(
+          userName: widget.userName,
+          actualMessage: mediaFileLocalPath,
+          chatMessageTypes: chatMessageTypes,
+          messageHolderType: MessageHolderType.ConnectedUsers,
+          messageDateLocal: DateTime.now().toString().split(" ")[0],
+          messageTimeLocal: mediaMessage.values.first.toString());
+
+      if (mounted) {
+        setState(() {
+          this._allConversationMessages.add({
+            mediaFileLocalPath: mediaMessage.values.first.toString(),
+          });
+          this._chatMessageCategoryHolder.add(chatMessageTypes);
+          this._conversationMessageHolder.add(true);
+        });
+      }
+    } catch (e) {
+      print("Error in Store And Show Message: ${e.toString()}");
+    } finally {
+      if (mounted) {
+        setState(() {
+          this._isLoading = false;
+        });
+      }
     }
   }
 
@@ -196,6 +327,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _fetchIncomingMessages();
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -265,7 +401,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           body: LoadingOverlay(
             isLoading: this._isLoading,
-            color: Colors.black54,
+            color: Colors.lightBlue,
             child: Container(
               width: double.maxFinite,
               height: double.maxFinite,
@@ -908,9 +1044,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 ? ChatMessageTypes.Image
                 : ChatMessageTypes.Video);
 
-        this._conversationMessageHolder.add(this._lastDirection);
-        this._lastDirection = !this._lastDirection;
+        this._conversationMessageHolder.add(false);
       });
+    }
+
+    if (chatMessageTypeTake == ChatMessageTypes.Image)
+      _sendImage(File(path).path);
+    else {
+      _sendVideo(videoPath: File(path).path, thumbnailPath: thumbnailPath);
     }
   }
 
@@ -1425,7 +1566,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _voiceSend(String recordedFilePath,
       {String audioExtension = '.mp3'}) async {
-    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    await SystemChannels.textInput.invokeMethod('TextInput.hide');
 
     if (_justAudioPlayer.duration != null) {
       if (mounted) {
@@ -1442,17 +1583,49 @@ class _ChatScreenState extends State<ChatScreen> {
       showToast(
           "Audio File Duration Can't be greater than 20 minutes", _fToast);
     else {
+      if (mounted) {
+        setState(() {
+          this._isLoading = true;
+        });
+      }
       final String _messageTime =
           "${DateTime.now().hour}:${DateTime.now().minute}";
 
+      final String? downloadedVoicePath = await _cloudStoreDataManagement
+          .uploadMediaToStorage(File(recordedFilePath),
+              reference: 'chatVoices/');
+
+      if (downloadedVoicePath != null) {
+        await _cloudStoreDataManagement.sendMessageToConnection(
+            connectionUserName: widget.userName,
+            sendMessageData: {
+              ChatMessageTypes.Audio.toString(): {
+                downloadedVoicePath.toString(): _messageTime
+              }
+            });
+
+        if (mounted) {
+          setState(() {
+            this._allConversationMessages.add({
+              recordedFilePath: _messageTime,
+            });
+            this._chatMessageCategoryHolder.add(ChatMessageTypes.Audio);
+            this._conversationMessageHolder.add(false);
+          });
+        }
+
+        await _localDatabase.insertMessageInUserTable(
+            userName: widget.userName,
+            actualMessage: recordedFilePath.toString(),
+            chatMessageTypes: ChatMessageTypes.Audio,
+            messageHolderType: MessageHolderType.Me,
+            messageDateLocal: DateTime.now().toString().split(" ")[0],
+            messageTimeLocal: _messageTime);
+      }
+
       if (mounted) {
         setState(() {
-          this._allConversationMessages.add({
-            recordedFilePath: _messageTime,
-          });
-          this._chatMessageCategoryHolder.add(ChatMessageTypes.Audio);
-          this._conversationMessageHolder.add(this._lastDirection);
-          this._lastDirection = !this._lastDirection;
+          this._isLoading = false;
         });
       }
     }
@@ -1600,6 +1773,7 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           this._typedText.clear();
           this._isLoading = false;
+          this._writeTextPresent = false;
         });
       }
     }
@@ -1635,6 +1809,89 @@ class _ChatScreenState extends State<ChatScreen> {
             )
             .then((value) => print("Recording"));
       }
+    }
+  }
+
+  Future<void> _sendImage(String imageFilePath) async {
+    if (mounted) {
+      setState(() {
+        this._isLoading = true;
+      });
+    }
+
+    final String _messageTime =
+        "${DateTime.now().hour}:${DateTime.now().minute}";
+
+    final String? downloadedImagePath = await _cloudStoreDataManagement
+        .uploadMediaToStorage(File(imageFilePath), reference: 'chatImages/');
+
+    if (downloadedImagePath != null) {
+      await _cloudStoreDataManagement.sendMessageToConnection(
+          connectionUserName: widget.userName,
+          sendMessageData: {
+            ChatMessageTypes.Image.toString(): {
+              downloadedImagePath.toString(): _messageTime
+            }
+          });
+
+      await _localDatabase.insertMessageInUserTable(
+          userName: widget.userName,
+          actualMessage: imageFilePath,
+          chatMessageTypes: ChatMessageTypes.Image,
+          messageHolderType: MessageHolderType.Me,
+          messageDateLocal: DateTime.now().toString().split(" ")[0],
+          messageTimeLocal: _messageTime);
+    }
+
+    if (mounted) {
+      setState(() {
+        this._isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _sendVideo(
+      {required String videoPath, required thumbnailPath}) async {
+    if (mounted) {
+      setState(() {
+        this._isLoading = true;
+      });
+    }
+
+    final String _messageTime =
+        "${DateTime.now().hour}:${DateTime.now().minute}";
+
+    final String? downloadedVideoPath = await _cloudStoreDataManagement
+        .uploadMediaToStorage(File(videoPath), reference: 'chatVideos/');
+
+    final String? downloadedVideoThumbnailPath = await _cloudStoreDataManagement
+        .uploadMediaToStorage(File(thumbnailPath),
+            reference: 'chatVideosThumbnail/');
+
+    if (downloadedVideoPath != null) {
+      await _cloudStoreDataManagement.sendMessageToConnection(
+          connectionUserName: widget.userName,
+          sendMessageData: {
+            ChatMessageTypes.Video.toString(): {
+              "${downloadedVideoPath.toString()}+${downloadedVideoThumbnailPath.toString()}":
+                  _messageTime
+            }
+          });
+
+      await _localDatabase.insertMessageInUserTable(
+          userName: widget.userName,
+          actualMessage: downloadedVideoPath.toString() +
+              downloadedVideoThumbnailPath.toString(),
+          chatMessageTypes: ChatMessageTypes.Video,
+          messageHolderType: MessageHolderType.Me,
+          messageDateLocal: DateTime.now().toString().split(" ")[0],
+          messageTimeLocal: _messageTime);
+    }
+
+    if (mounted) {
+      setState(() {
+        this._isLoading = false;
+      });
     }
   }
 }

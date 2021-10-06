@@ -54,6 +54,8 @@ dependencies:
   percent_indicator: ^3.0.1
   record: ^3.0.0
   path_provider:
+  firebase_storage: ^10.0.4
+  dio: ^4.0.0
 
   loading_overlay: ^0.3.0
 

@@ -70,8 +70,6 @@ class _ChatAndActivityScreenState extends State<ChatAndActivityScreen> {
               });
             }
 
-
-
             final bool _newConnectionUserNameInserted =
                 await _localDatabase.insertOrUpdateDataForThisAccount(
                     userName: _connectedUserName,
