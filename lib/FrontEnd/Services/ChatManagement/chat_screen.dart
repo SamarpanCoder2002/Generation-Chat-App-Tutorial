@@ -45,7 +45,6 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   bool _isLoading = false;
   bool _writeTextPresent = false;
-  bool _lastDirection = false;
   bool _showEmojiPicker = false;
 
   final FToast _fToast = FToast();
@@ -182,6 +181,12 @@ class _ChatScreenState extends State<ChatScreen> {
             Future.microtask(() {
               _manageIncomingLocationMessages(everyMessage.values.first);
             });
+          }else if (everyMessage.keys.first.toString() ==
+              ChatMessageTypes.Document.toString()) {
+            Future.microtask(() {
+              _manageIncomingMediaMessages(
+                  everyMessage.values.first, ChatMessageTypes.Document);
+            });
           }
         });
       });
@@ -240,7 +245,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     String videoThumbnailLocalPath = "";
 
-    String actualFileRemotePath = chatMessageTypes == ChatMessageTypes.Video
+    String actualFileRemotePath = chatMessageTypes == ChatMessageTypes.Video || chatMessageTypes == ChatMessageTypes.Document
         ? mediaMessage.keys.first.toString().split("+")[0]
         : mediaMessage.keys.first.toString();
 
@@ -254,7 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
           mediaMessage.keys.first.toString().split("+")[1];
     } else if (chatMessageTypes == ChatMessageTypes.Document) {
       refName = "/Documents/";
-      extension = '.pdf';
+      extension = mediaMessage.keys.first.toString().split("+")[1];
     } else if (chatMessageTypes == ChatMessageTypes.Audio) {
       refName = "/Audio/";
       extension = '.mp3';
@@ -363,6 +368,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     this._chatBoxHeight = MediaQuery.of(context).size.height - 160;
+
 
     return SafeArea(
       child: WillPopScope(
@@ -736,10 +742,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                 print('Extension: ${element.extension}');
                                 if (_allowedExtensions
                                     .contains(element.extension)) {
-                                  _voiceSend(element.path.toString(),
+                                  _voiceAndAudioSend(element.path.toString(),
                                       audioExtension: '.${element.extension}');
                                 } else {
-                                  _voiceSend(element.path.toString());
+                                  _voiceAndAudioSend(element.path.toString());
                                 }
                               });
                             }
@@ -1252,18 +1258,55 @@ class _ChatScreenState extends State<ChatScreen> {
           print(file.path);
 
           if (_allowedExtensions.contains(file.extension)) {
+            if (mounted) {
+              setState(() {
+                this._isLoading = true;
+              });
+            }
+
             final String _messageTime =
                 "${DateTime.now().hour}:${DateTime.now().minute}";
 
+            final String? downloadedDocumentPath =
+                await _cloudStoreDataManagement.uploadMediaToStorage(
+                    File(File(file.path.toString()).path),
+                    reference: 'chatDocuments/');
+
+            if (downloadedDocumentPath != null) {
+              await _cloudStoreDataManagement.sendMessageToConnection(
+                  connectionUserName: widget.userName,
+                  sendMessageData: {
+                    ChatMessageTypes.Document.toString(): {
+                      "${downloadedDocumentPath.toString()}+.${file.extension}":
+                          _messageTime
+                    }
+                  });
+
+              if (mounted) {
+                setState(() {
+                  this._allConversationMessages.add({
+                    File(file.path.toString()).path: _messageTime,
+                  });
+
+                  this
+                      ._chatMessageCategoryHolder
+                      .add(ChatMessageTypes.Document);
+                  this._conversationMessageHolder.add(false);
+                });
+              }
+
+              await _localDatabase.insertMessageInUserTable(
+                  userName: widget.userName,
+                  actualMessage: File(file.path.toString()).path.toString(),
+                  chatMessageTypes: ChatMessageTypes.Document,
+                  messageHolderType: MessageHolderType.Me,
+                  messageDateLocal: DateTime.now().toString().split(" ")[0],
+                  messageTimeLocal: _messageTime);
+            }
+
             if (mounted) {
               setState(() {
-                this._allConversationMessages.add({
-                  File(file.path.toString()).path: _messageTime,
-                });
-
-                this._chatMessageCategoryHolder.add(ChatMessageTypes.Document);
-                this._conversationMessageHolder.add(this._lastDirection);
-                this._lastDirection = !this._lastDirection;
+                this._isLoading = false;
               });
             }
           } else {
@@ -1620,7 +1663,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  void _voiceSend(String recordedFilePath,
+  void _voiceAndAudioSend(String recordedFilePath,
       {String audioExtension = '.mp3'}) async {
     await SystemChannels.textInput.invokeMethod('TextInput.hide');
 
@@ -1850,7 +1893,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         final String? recordedFilePath = await this._record.stop();
 
-        _voiceSend(recordedFilePath.toString());
+        _voiceAndAudioSend(recordedFilePath.toString());
       } else {
         if (mounted) {
           setState(() {
