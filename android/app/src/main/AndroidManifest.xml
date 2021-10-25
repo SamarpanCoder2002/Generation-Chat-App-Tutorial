@@ -42,6 +42,11 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <action android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -50,7 +55,7 @@
             android:value="2" />
 
         <meta-data android:name="com.google.android.geo.API_KEY"
-            android:value="API-KEY"/>
+            android:value="AIzaSyC9HcukzWCC78JTdSAYvMr8Bb7c8oabi2A"/>
 
 <!--        For Facebook-->
         <meta-data android:name="com.facebook.sdk.ApplicationId"

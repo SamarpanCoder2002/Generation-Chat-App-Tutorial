@@ -129,6 +129,19 @@ class LocalDatabase {
     }
   }
 
+  Future<String?> getUserNameForCurrentUser(String userEmail) async {
+    try {
+      final Database db = await this.database;
+
+      List<Map<String, Object?>> result = await db.rawQuery(
+          "SELECT $_colUserName FROM ${this._importantTableData} WHERE $_colUserMail='$userEmail'");
+
+      return result[0].values.first.toString();
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<String?> getParticularFieldDataFromImportantTable(
       {required String userName,
       required GetFieldForImportantDataLocalDatabase getField}) async {

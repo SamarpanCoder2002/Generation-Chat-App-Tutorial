@@ -29,7 +29,7 @@ dependencies:
   flutter_facebook_auth: ^3.5.0
   cloud_firestore: ^2.5.1
   intl: ^0.17.0
-  firebase_messaging: ^10.0.4
+  firebase_messaging: ^10.0.9
   animations: ^2.0.1
   circle_list: ^1.0.5
   flutter_icons:
@@ -42,20 +42,22 @@ dependencies:
   image_picker:
   emoji_picker_flutter: ^1.0.6
   fluttertoast: ^8.0.8
-  permission_handler: ^8.1.4+2
+  permission_handler: ^8.2.5
   file_picker: ^4.0.0
   pdf_viewer_plugin:
     git:
       url: https://github.com/boskokg/Pdf_Viewer_Plugin/
       ref: master
-  google_maps_flutter: ^2.0.6
-  geolocator: ^7.4.0
+  google_maps_flutter: ^2.0.11
+  geolocator: ^7.7.1
   just_audio: ^0.9.7
   percent_indicator: ^3.0.1
   record: ^3.0.0
   path_provider:
   firebase_storage: ^10.0.4
   dio: ^4.0.0
+  flutter_local_notifications: ^9.0.1
+  http: ^0.13.4
 
   loading_overlay: ^0.3.0
 
