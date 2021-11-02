@@ -1,56 +1,56 @@
-enum EmailSignUpResults{
+enum EmailSignUpResults {
   SignUpCompleted,
   EmailAlreadyPresent,
   SignUpNotCompleted,
 }
 
-enum EmailSignInResults{
+enum EmailSignInResults {
   SignInCompleted,
   EmailNotVerified,
   EmailOrPasswordInvalid,
   UnexpectedError,
 }
 
-enum GoogleSignInResults{
+enum GoogleSignInResults {
   SignInCompleted,
   SignInNotCompleted,
   UnexpectedError,
   AlreadySignedIn,
 }
 
-enum FBSignInResults{
+enum FBSignInResults {
   SignInCompleted,
   SignInNotCompleted,
   AlreadySignedIn,
   UnExpectedError,
 }
 
-enum StatusMediaTypes{
+enum StatusMediaTypes {
   TextActivity,
   ImageActivity,
 }
 
-enum ConnectionStateName{
+enum ConnectionStateName {
   Connect,
   Pending,
   Accept,
   Connected,
 }
 
-enum ConnectionStateType{
+enum ConnectionStateType {
   ButtonNameWidget,
   ButtonBorderColor,
   ButtonOnlyName,
 }
 
-enum OtherConnectionStatus{
+enum OtherConnectionStatus {
   Request_Pending,
   Invitation_Came,
   Invitation_Accepted,
   Request_Accepted,
 }
 
-enum ChatMessageTypes{
+enum ChatMessageTypes {
   None,
   Text,
   Image,
@@ -60,18 +60,18 @@ enum ChatMessageTypes{
   Location,
 }
 
-enum ImageProviderCategory{
+enum ImageProviderCategory {
   FileImage,
   ExactAssetImage,
   NetworkImage,
 }
 
-enum MessageHolderType{
+enum MessageHolderType {
   Me,
   ConnectedUsers,
 }
 
-enum GetFieldForImportantDataLocalDatabase{
+enum GetFieldForImportantDataLocalDatabase {
   UserEmail,
   Token,
   ProfileImagePath,
@@ -82,4 +82,12 @@ enum GetFieldForImportantDataLocalDatabase{
   Notification,
   AccountCreationDate,
   AccountCreationTime,
+}
+
+enum PreviousMessageColTypes {
+  ActualMessage,
+  MessageDate,
+  MessageTime,
+  MessageHolder,
+  MessageType,
 }

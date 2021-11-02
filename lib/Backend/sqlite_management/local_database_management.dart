@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:generation/FrontEnd/model/previous_message_structure.dart';
 import 'package:generation/Global_Uses/enum_generation.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -265,6 +266,28 @@ class LocalDatabase {
       print('Row Affected: $rowAffected');
     } catch (e) {
       print('Error in Insert Message In User Table: ${e.toString()}');
+    }
+  }
+
+  Future<List<PreviousMessageStructure>> getAllPreviousMessages(
+      String userName) async {
+    try {
+      final Database db = await this.database;
+
+      final List<Map<String, Object?>> result =
+          await db.rawQuery("SELECT * from $userName");
+
+      List<PreviousMessageStructure> takePreviousMessages = [];
+
+      for (int i = 0; i < result.length; i++) {
+        Map<String, dynamic> tempMap = result[i];
+        takePreviousMessages.add(PreviousMessageStructure.toJson(tempMap));
+      }
+
+      return takePreviousMessages;
+    } catch (e) {
+      print("Error is: $e");
+      return [];
     }
   }
 }

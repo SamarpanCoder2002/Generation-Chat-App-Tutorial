@@ -8,6 +8,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:generation/Backend/firebase/OnlineDatabaseManagement/cloud_data_management.dart';
 import 'package:generation/Backend/sqlite_management/local_database_management.dart';
+import 'package:generation/FrontEnd/model/previous_message_structure.dart';
 import 'package:generation/Global_Uses/constants.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:animations/animations.dart';
@@ -350,6 +351,43 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  _loadPreviousStoredMessages() async {
+    try {
+      if(mounted){
+        setState(() {
+          this._isLoading = true;
+        });
+      }
+
+      List<PreviousMessageStructure> _storedPreviousMessages =
+          await _localDatabase.getAllPreviousMessages(widget.userName);
+
+      for (int i = 0; i < _storedPreviousMessages.length; i++) {
+        final PreviousMessageStructure _previousMessage =
+            _storedPreviousMessages[i];
+
+        if (mounted) {
+          setState(() {
+            this._allConversationMessages.add({
+              _previousMessage.actualMessage: _previousMessage.messageTime,
+            });
+            this._chatMessageCategoryHolder.add(_previousMessage.messageType);
+            this._conversationMessageHolder.add(_previousMessage.messageHolder);
+          });
+        }
+      }
+    } catch (e) {
+      print("Previous Message Fetching Error in ChatScreen: ${e.toString()}");
+    } finally {
+      if(mounted){
+        setState(() {
+          this._isLoading = false;
+        });
+      }
+      await _fetchIncomingMessages();
+    }
+  }
+
   @override
   void initState() {
     _fToast.init(context);
@@ -357,7 +395,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _takePermissionForStorage();
     _getConnectionEmail();
 
-    _fetchIncomingMessages();
+    _loadPreviousStoredMessages();
     super.initState();
   }
 
