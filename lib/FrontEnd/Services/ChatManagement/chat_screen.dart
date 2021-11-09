@@ -53,15 +53,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _connectionEmail = "";
 
-  List<Map<String, String>> _allConversationMessages = [
-    {"Samarpan Dasgupta": "19:0"},
-    {"Amitava Garai": "20:0"},
-  ];
-  List<bool> _conversationMessageHolder = [true, false];
-  List<ChatMessageTypes> _chatMessageCategoryHolder = [
-    ChatMessageTypes.Text,
-    ChatMessageTypes.Text,
-  ];
+  List<Map<String, String>> _allConversationMessages = [];
+  List<bool> _conversationMessageHolder = [];
+  List<ChatMessageTypes> _chatMessageCategoryHolder = [];
 
   final TextEditingController _typedText = TextEditingController();
 
@@ -93,6 +87,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// For Audio Player
   IconData _iconData = Icons.play_arrow_rounded;
+
+  final ScrollController _scrollController = ScrollController(
+    initialScrollOffset: 0.0,
+  );
 
   final FirestoreFieldConstants _firestoreFieldConstants =
       FirestoreFieldConstants();
@@ -215,6 +213,15 @@ class _ChatScreenState extends State<ChatScreen> {
         this._conversationMessageHolder.add(true);
       });
     }
+
+    if (mounted) {
+      setState(() {
+        _scrollController.jumpTo(
+          _scrollController.position.maxScrollExtent +
+              _amountToScroll(ChatMessageTypes.Location),
+        );
+      });
+    }
   }
 
   _manageIncomingTextMessages(var textMessage) async {
@@ -234,6 +241,15 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         this._chatMessageCategoryHolder.add(ChatMessageTypes.Text);
         this._conversationMessageHolder.add(true);
+      });
+    }
+
+    if (mounted) {
+      setState(() {
+        _scrollController.jumpTo(
+          _scrollController.position.maxScrollExtent +
+              _amountToScroll(ChatMessageTypes.Text)+30.0,
+        );
       });
     }
   }
@@ -315,6 +331,15 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (e) {
       print("Error in Media Downloading: ${e.toString()}");
+    }finally{
+      if (mounted) {
+        setState(() {
+          _scrollController.jumpTo(
+            _scrollController.position.maxScrollExtent +
+                _amountToScroll(chatMessageTypes, actualMessageKey: mediaFileLocalPath),
+          );
+        });
+      }
     }
   }
 
@@ -352,12 +377,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   _loadPreviousStoredMessages() async {
+    double _positionToScroll = 100.0;
+
     try {
-      if(mounted){
-        setState(() {
-          this._isLoading = true;
-        });
-      }
+      // if (mounted) {
+      //   setState(() {
+      //     this._isLoading = true;
+      //   });
+      // }
 
       List<PreviousMessageStructure> _storedPreviousMessages =
           await _localDatabase.getAllPreviousMessages(widget.userName);
@@ -373,18 +400,53 @@ class _ChatScreenState extends State<ChatScreen> {
             });
             this._chatMessageCategoryHolder.add(_previousMessage.messageType);
             this._conversationMessageHolder.add(_previousMessage.messageHolder);
+
+            _positionToScroll += _amountToScroll(_previousMessage.messageType,
+                actualMessageKey: _previousMessage.actualMessage);
           });
         }
       }
     } catch (e) {
       print("Previous Message Fetching Error in ChatScreen: ${e.toString()}");
     } finally {
-      if(mounted){
+      // if (mounted) {
+      //   setState(() {
+      //     this._isLoading = false;
+      //   });
+      // }
+
+      if (mounted) {
         setState(() {
-          this._isLoading = false;
+          print("Position to Scroll: $_positionToScroll");
+          _scrollController.jumpTo(
+            _scrollController.position.maxScrollExtent + _positionToScroll,
+          );
         });
       }
       await _fetchIncomingMessages();
+    }
+  }
+
+  double _amountToScroll(ChatMessageTypes chatMessageTypes,
+      {String? actualMessageKey}) {
+    switch (chatMessageTypes) {
+      case ChatMessageTypes.None:
+        return 10.0 + 30.0;
+      case ChatMessageTypes.Text:
+        return 10.0 + 30.0;
+      case ChatMessageTypes.Image:
+        return MediaQuery.of(context).size.height * 0.6;
+      case ChatMessageTypes.Video:
+        return MediaQuery.of(context).size.height * 0.6;
+      case ChatMessageTypes.Document:
+        return actualMessageKey!.contains('.pdf')
+            ? MediaQuery.of(context).size.height * 0.6
+            : 70.0 + 30.0;
+
+      case ChatMessageTypes.Audio:
+        return 70.0 + 30.0;
+      case ChatMessageTypes.Location:
+        return MediaQuery.of(context).size.height * 0.6;
     }
   }
 
@@ -485,6 +547,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     padding: EdgeInsets.only(top: 20.0),
                     child: ListView.builder(
                       shrinkWrap: true,
+                      controller: _scrollController,
                       itemCount: this._allConversationMessages.length,
                       itemBuilder: (itemBuilderContext, index) {
                         if (this._chatMessageCategoryHolder[index] ==
@@ -1118,6 +1181,15 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     }
 
+    if (mounted) {
+      setState(() {
+        _scrollController.jumpTo(
+          _scrollController.position.maxScrollExtent +
+              _amountToScroll(chatMessageTypeTake),
+        );
+      });
+    }
+
     if (chatMessageTypeTake == ChatMessageTypes.Image)
       _sendImage(File(path).path);
     else {
@@ -1334,6 +1406,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 });
               }
 
+              if (mounted) {
+                setState(() {
+                  _scrollController.jumpTo(
+                    _scrollController.position.maxScrollExtent +
+                        _amountToScroll(ChatMessageTypes.Document),
+                  );
+                });
+              }
+
               await _localDatabase.insertMessageInUserTable(
                   userName: widget.userName,
                   actualMessage: File(file.path.toString()).path.toString(),
@@ -1482,6 +1563,15 @@ class _ChatScreenState extends State<ChatScreen> {
                               ._chatMessageCategoryHolder
                               .add(ChatMessageTypes.Location);
                           this._conversationMessageHolder.add(false);
+                        });
+                      }
+
+                      if (mounted) {
+                        setState(() {
+                          _scrollController.jumpTo(
+                            _scrollController.position.maxScrollExtent +
+                                _amountToScroll(ChatMessageTypes.Location),
+                          );
                         });
                       }
 
@@ -1754,6 +1844,15 @@ class _ChatScreenState extends State<ChatScreen> {
           });
         }
 
+        if (mounted) {
+          setState(() {
+            _scrollController.jumpTo(
+              _scrollController.position.maxScrollExtent +
+                  _amountToScroll(ChatMessageTypes.Audio)+30.0,
+            );
+          });
+        }
+
         await _localDatabase.insertMessageInUserTable(
             userName: widget.userName,
             actualMessage: recordedFilePath.toString(),
@@ -1899,6 +1998,15 @@ class _ChatScreenState extends State<ChatScreen> {
           });
           this._chatMessageCategoryHolder.add(ChatMessageTypes.Text);
           this._conversationMessageHolder.add(false);
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _scrollController.jumpTo(
+            _scrollController.position.maxScrollExtent +
+                _amountToScroll(ChatMessageTypes.Text)+30.0,
+          );
         });
       }
 
